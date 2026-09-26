@@ -1,0 +1,38 @@
+@route = http://localhost:8080
+@account = account
+
+
+###
+GET {{route}}/{{account}}/hu_tao
+
+
+###
+POST {{route}}/{{account}}
+Content-Type: application/json
+
+{
+    "username": "HuTao",
+    "password": "secretTao...",
+    "bio": "she cute~"
+}
+
+
+###
+PUT {{route}}/{{account}}
+Content-Type: application/json
+
+{
+    "credentials": {
+        "username": "HuTao",
+        "password": "newTao"
+    },
+
+    "newData": {
+        "username": "HU_TAO",
+        "bio": "best girl ><"
+    }
+}
+
+
+###
+DELETE {{route}}
