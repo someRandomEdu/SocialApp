@@ -38,3 +38,17 @@ export async function tryInvokeAsync<T>(fn: () => Promise<T>) {
         return error(e);
     }
 }
+
+export function tryParseNumber(v: unknown): Result<number, string> {
+    if (Number.isNaN(v)) {
+        return success(NaN);
+    }
+
+    const r = Number(v);
+    return Number.isNaN(r) ? error("Value is not a number!") : success(r);
+}
+
+export function tryParseInt(v: unknown) {
+    const n = Number(v);
+    return Number.isInteger(n) ? success(n) : error("Value is not an int!");
+}

@@ -2,21 +2,23 @@ import express, { Express } from "express";
 import cors from "cors";
 import { Server } from "node:http";
 import { DataSource } from "typeorm";
-import { userEntitySchema } from "../shared/account.ts";
-import { rootRoute, rootPort } from "../shared/apiRoutes.ts";
+import { accountEntitySchema } from "../shared/account.ts";
+import { rootRoute, rootPort, domain } from "../shared/apiRoutes.ts";
 
 export class App {
-    public readonly rootRoute: string;
     public readonly rootPort: number;
+    public readonly rootRoute: string;
+    public readonly domain: string;
     public readonly expressApp: Express;
     public readonly server: Server;
     public readonly dataSource: DataSource;
     public readonly customData: Record<string, unknown>;
 
-    public constructor(rootRoute: string, rootPort: number, expressApp: Express, server: Server, 
+    public constructor(rootPort: number, rootRoute: string, domain: string, expressApp: Express, server: Server, 
         dataSource: DataSource, customData: Record<string, unknown> = {}) {
-        this.rootRoute = rootRoute;
         this.rootPort = rootPort;
+        this.rootRoute = rootRoute;
+        this.domain = domain;
         this.expressApp = expressApp;
         this.server = server;
         this.dataSource = dataSource;
@@ -41,8 +43,9 @@ export async function initApp(): Promise<App> {
     expressApp.use(cors());
 
     return new App(
-        rootRoute, 
         rootPort,
+        rootRoute, 
+        domain,
         expressApp, 
         expressApp.listen(rootPort), 
 
@@ -50,7 +53,7 @@ export async function initApp(): Promise<App> {
             type: "better-sqlite3",
             database: ":memory:",
             synchronize: true,
-            entities: [userEntitySchema]
+            entities: [accountEntitySchema]
         }).initialize(),
 
         {}

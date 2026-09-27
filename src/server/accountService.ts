@@ -1,10 +1,9 @@
-import { Account, AccountCredentials, accountCredentialsSchema, AccountSignUpData, accountSignUpDataSchema, userEntitySchema } from "../shared/account.ts";
+import { Account, AccountCredentials, accountCredentialsSchema, AccountSignUpData, accountSignUpDataSchema, accountEntitySchema } from "../shared/account.ts";
 import { App } from "./app.ts";
 import { HttpStatusCodes } from "../shared/net.ts";
-import { isNullish } from "../shared/utils.ts";
 
 export async function initAccountService(app: App) {
-    const repo = app.dataSource.getRepository(userEntitySchema);
+    const repo = app.dataSource.getRepository(accountEntitySchema);
     app.customData.accountRepo = repo;
     const e = app.expressApp;
     const route = "/account";

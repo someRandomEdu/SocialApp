@@ -12,6 +12,7 @@ app.expressApp.get("/", async (_, res) => {
 app.expressApp.delete("/", async (req, res) => {
     app.server.close();
     res.status(HttpStatusCodes.Ok).send("Shutting down the server...");
+    console.log("Shutting down the server...");
 });
 
 console.log("Finished initializing the server!");

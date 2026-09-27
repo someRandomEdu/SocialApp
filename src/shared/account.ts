@@ -1,6 +1,8 @@
 import { EntitySchema } from "typeorm";
 import * as z from "zod";
 
+export const validUsernamesRegex = /[\w]+/;
+
 export const accountSchema = z.object({
     id: z.int(),
     username: z.string(),
@@ -11,7 +13,7 @@ export const accountSchema = z.object({
 
 export type Account = z.infer<typeof accountSchema>;
 
-export const userEntitySchema = new EntitySchema<Account>({
+export const accountEntitySchema = new EntitySchema<Account>({
     name: "users",
 
     columns: {
@@ -43,7 +45,13 @@ export const userEntitySchema = new EntitySchema<Account>({
 export const accountSignUpDataSchema = z.object({
     username: z.string(),
     password: z.string(),
-    bio: z.string().default(""),
+    bio: z.string().default("")
+});
+
+export const accountPublicSchema = z.object({
+    username: z.string(),
+    bio: z.string(),
+    createdAt: z.coerce.date()
 });
 
 export type AccountSignUpData = z.infer<typeof accountSignUpDataSchema>;

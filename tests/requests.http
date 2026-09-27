@@ -3,7 +3,7 @@
 
 
 ###
-GET {{route}}/{{account}}/hu_tao
+GET {{route}}/{{account}}/HuTao
 
 
 ###
@@ -24,7 +24,7 @@ Content-Type: application/json
 {
     "credentials": {
         "username": "HuTao",
-        "password": "newTao"
+        "password": "secretTao..."
     },
 
     "newData": {
