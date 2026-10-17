@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
+import { UserConfig } from "vite";
 
-export default defineConfig({
+export default {
     build: {
         outDir: "dist/client",
         emptyOutDir: true
@@ -10,5 +10,5 @@ export default defineConfig({
         host: "localhost",
         port: 5173,
         strictPort: false
-    }
-});
+    },
+} satisfies UserConfig;

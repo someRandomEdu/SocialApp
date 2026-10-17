@@ -23,8 +23,10 @@
         "noImplicitReturns": true,
         "strictFunctionTypes": true,
         "useUnknownInCatchVariables": true,
+        "exactOptionalPropertyTypes": true,
         "lib": ["ESNext", "DOM"],
         "types": ["@webgpu/types", "vite/client"]
     },
+
     "include": ["src", "dom", "src/index.ts", "src/shared/account.ts", "src/shared/net.ts", "src/client", "src/server"]
 }

@@ -1,5 +1,4 @@
-export type Json = number | string | boolean | null | Json[] | { [key: string]: Json };
-export type JwtStr = `${string}.${string}.${string}`;
+import { z } from "zod";
 
 // https://http.dev/
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status
@@ -224,10 +223,10 @@ export type HttpServerErrorStatusCode =
     | typeof HttpStatusCodes.NetworkAuthenticationRequired;
 
 // https://http.dev/methods
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "QUERY" | 
-    "HEAD" | "OPTIONS" | "TRACE" | "CONNECT" | "PRI";
+export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "QUERY" 
+    | "HEAD" | "OPTIONS" | "TRACE" | "CONNECT" | "PRI";
 
-export class HttpResponse<E, S extends HttpStatusCode = HttpStatusCode> {
+export class ApiResponse<E, S extends HttpStatusCode = HttpStatusCode> {
     public entity: E;
     public status: S;
 
@@ -235,8 +234,29 @@ export class HttpResponse<E, S extends HttpStatusCode = HttpStatusCode> {
         this.entity = entity;
         this.status = status;
     }
-};
-
-export function httpResponse<E, S extends HttpStatusCode>(entity: E, status: S) {
-    return new HttpResponse(entity, status);
 }
+
+export function apiResponse<E, S extends HttpStatusCode>(entity: E, status: S) {
+    return new ApiResponse(entity, status);
+}
+
+export const problemDetailSchema = z.object({
+    type: z.url().optional(),
+    status: z.int().optional(),
+    title: z.string().optional(),
+    detail: z.string().optional(),
+    instance: z.url().optional(),
+}).and(z.record(z.string(), z.unknown()));
+
+/** Describes the shape of an error object conforming to https://www.rfc-editor.org/info/rfc9457/. */
+export type ProblemDetail = z.infer<typeof problemDetailSchema>;
+
+type Base64BaseChar = 
+    | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" 
+    | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
+    | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+    | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
+    | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+export type Base64Char = Base64BaseChar | "+" | "/";
+export type Base64UrlChar = Base64BaseChar | "-" | "_";

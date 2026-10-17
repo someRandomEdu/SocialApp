@@ -1,0 +1,63 @@
+﻿{
+    "openapi": "3.2.0",
+
+    "info": {
+        "title": "SocialApp",
+        "description": "Docs",
+        "version": "1.0.0"
+    },
+
+    "servers": [
+        {
+            "url": "https://localhost:5173/api",
+            "description": "Main Api used for client-server communication"
+        },
+
+        {
+            "url": "https://localhost:5173/server",
+            "description": "Api used for communication between servers"
+        }
+    ],
+
+    "tags": [
+        
+    ],
+
+    "paths": {
+        "/server/publicKey": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+
+                                    "properties": {
+                                        "algorithm": {
+                                            "type": "string"
+                                        },
+
+                                        "format": {
+                                            "type": "string"
+                                        },
+
+                                        "encoding": {
+                                            "type": "string"
+                                        },
+
+                                        "publicKey": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

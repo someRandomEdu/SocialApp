@@ -1,81 +1,132 @@
-import { SubmitEvent } from "react";
 import { useState } from "react";
-import { Json } from "../shared/net";
-import { accountRoute } from "../shared/apiRoutes";
-import { Account, accountPublicSchema } from "../shared/account";
+import { PublicAccount } from "../shared/account";
+import CloseIcon from '@mui/icons-material/Close';
+import {
+    Box,
+    Button,
+    Container,
+    createTheme,
+    CssBaseline,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    IconButton,
+    TextField,
+    ThemeProvider
+} from "@mui/material";
+import * as React from "react";
 
-function Ui() {
-    const [count, setCount] = useState(0);
-    const [accountDisplayElem, setAccountDisplayElem] = useState(<></>);
+// https://react-typescript-cheatsheet.netlify.app/
+// https://www.mui-treasury.com/
+// https://mui.com/material-ui/material-icons/
 
-    async function handleSubmission(e: SubmitEvent<HTMLFormElement>) {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
+export const theme = createTheme({
+    typography: {
+        fontFamily: "cursive"
+    },
 
-        try {
-            const res = await fetch(`${accountRoute}/${formData.get("username")}`, {
-                method: "GET",
-            });
+    palette: {
+        primary: {
+            main: "#e91e62",
+            light: "#f06291",
+            dark: "#c2185a"
+        },
 
-            if (res.ok) {
-                const json: Json = await res.json();
-                console.log(json);
-                const a = accountPublicSchema.safeParse(json);
+        secondary: {
+            main: "#6652ce",
+            light: "#a899e1",
+            dark: "#3931bf"
+        },
 
-                if (a.success) {
-                    setAccountDisplayElem(<>
-                        <div>{a.data.username}</div>
-                        <div>{a.data.bio}</div>
-                        <div>{String(a.data.createdAt)}</div>
-                    </>);
-                } else {
-                    setAccountDisplayElem(<>
-                        Error occurred while parsing user data...
-                    </>);
-                }
+        background: {
+            default: "#000000"
+        },
 
-            } else {
-                setAccountDisplayElem(<>
-                    Error occurred while querying user data...
-                </>);
-            }
-        } catch (e) {
-            setAccountDisplayElem(<>
-                Error occurred while connecting to the server...
-            </>);
-        } finally {
-            e.target.reset();
-        }
+        text: {
+            primary: "#ffffff"
+        },
+
+        info: {
+            main: "#2ea0f2"
+        },
     }
-
-    return <>
-        <button onClick={() => setCount(count + 1)}>Press count: {count}</button>
-
-        <form onSubmit={handleSubmission}>
-            <label>
-                <div>Username To Find:</div>
-                <input type="text" name="username" autoComplete="username"></input>
-            </label>
-
-            <button type="submit">Submit</button>
-        </form>
-
-        <label>
-            Data:
-        </label>
-
-        <label>
-            {accountDisplayElem}
-        </label>
-    </>;
-}
+});
 
 export function App() {
-    return <>
-        <div>
-            <h1>Welcome to my app~</h1>
-            Today is {new Date().toDateString()}
-            <Ui/>
-        </div>
-    </>;
+    const [account, setAccount] = useState(undefined as PublicAccount | undefined);
+    const [dialogOpened, setDialogOpened] = useState(false);
+
+    return <ThemeProvider theme={theme}>
+        <CssBaseline>
+            <Box
+                sx={{
+                    position: "fixed",
+                    left: 0,
+                    bottom: 0,
+                    width: "60px    ",
+                    height: "100vh",
+                    color: "whitesmoke",
+                    backgroundColor: "#7f7f7f",
+                    border: "1px solid",
+                    borderColor: "divider",
+                }}
+            >
+                Hu Tao cute qwq
+            </Box>
+
+            <Container style={{ display: "flex", flexDirection: "column" }}
+                sx={{ width: "auto", height: "auto" }}>
+
+                <Dialog open={dialogOpened} sx={{color: "#0099ff"}} style={{
+                    display: "flex", flexDirection: "column"}}
+                    fullWidth={true} maxWidth="sm" slotProps={{
+                        paper: {
+                            sx: {
+                                backgroundColor: "#7f7f7f"
+                            }
+                        }
+                    }}>
+
+                    <DialogTitle style={{ display: "flex" }}>
+                        Welcome back~
+                        <IconButton type="button" sx={{marginLeft: "auto"}} 
+                            onClick={(e) => { 
+                                setDialogOpened(false); 
+                            }}>
+
+                            <CloseIcon></CloseIcon>
+                        </IconButton>
+                    </DialogTitle>
+
+                    <DialogContent style={{display: "flex", flexDirection: "column"}}>
+                        <TextField label={"Username"}></TextField>
+                        <TextField label={"Password"} type="password"></TextField>
+                    </DialogContent>
+
+                    <DialogActions>
+                        <Button type="submit">Login</Button>
+                    </DialogActions>
+                </Dialog>
+                
+                <Button onClick={(e) => {
+                    setDialogOpened(true);
+                }}>Login</Button>
+
+            </Container>
+
+            <Container>
+                <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "flex-end",
+                    alignItems: "flex-start", marginTop: "auto", height: "90vh" }}>
+                    <Box>
+                        not logged in qwq
+                    </Box>
+
+                    <Box>
+                        meow...
+                    </Box>
+                </Box>
+            </Container>
+        </CssBaseline>
+    </ThemeProvider>;
 }
