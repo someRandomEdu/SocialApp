@@ -46,24 +46,24 @@ export const modifyAccountSchema = accountSchema.omit({
     origin: true,
     createdAt: true,
     lastModifiedAt: true
-}).exactPartial();
+});
 
 export type ModifyAccount = z.infer<typeof modifyAccountSchema>;
 
 /** A {@link JWTPayload}-like type representing a session. */
 export type AccountSession = {
     /** The Id of the session object itself. */
-    jti: number;
+    readonly jti: number;
 
     /** The origin {@link URL} of the home server of that account. */
-    iss: URL;
+    readonly iss: URL;
 
     /** The Id of the account associated with this token. */
-    sub: number;
+    readonly sub: number;
 
     /** When is this session issued? */
-    iat: Date;
+    readonly iat: Date;
 
     /** Contains either the expiry {@link Date} of this session, or null if it doesn't have a such date. */
-    exp: Date | null;
+    readonly exp: Date | null;
 };

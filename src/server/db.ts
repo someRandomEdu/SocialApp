@@ -20,53 +20,54 @@ export const dbAccountSchema = new EntitySchema<DbAccount>({
 });
 
 export type DbMessage = {
-    id: number;
-    createdAt: Date;
+    readonly id: number;
+    readonly senderAccountId: number;
+    readonly senderAccountOrigin: string;
+    readonly receiverId: number;
+    readonly receiverOrigin: string;
+    readonly receiverType: Exclude<EntityType, typeof EntityTypes.Message>;
+    content: string;
+    readonly createdAt: Date;
     lastModifiedAt: Date;
-    senderAccountId: number;
-    senderAccountOrigin: string;
-    receiverId: number;
-    receiverOrigin: string;
-    receiverType: Exclude<EntityType, typeof EntityTypes.Message>;
 };
 
 export type DbRoom = {
-    id: number;
+    readonly id: number;
     name: string;
-    privateRoom: boolean;
-    createdAt: Date;
+    isPublic: boolean;
+    readonly createdAt: Date;
     ownerAccountId: number;
     ownerAccountOrigin: string;
 };
 
 export type DbRoomMember = {
-    id: number;
-    roomId: number;
-    accountId: number;
-    accountOrigin: string;
+    readonly id: number;
+    readonly roomId: number;
+    readonly accountId: number;
+    readonly accountOrigin: string;
 };
 
 export type DbRoomBannedMember = {
-    id: number;
-    roomId: number;
-    accountId: number;
-    accountOrigin: string;
+    readonly id: number;
+    readonly roomId: number;
+    readonly accountId: number;
+    readonly accountOrigin: string;
 };
 
 /** Represents a session of a particular account in the database, in a {@link JWTPayload}-like format. */
 // TODO: Make DbAccountSession and AccountSession use a more readable scheme?
 export type DbAccountSession = {
     /** The Id of the session object itself. */
-    jti: number;
+    readonly jti: number;
 
     /** The Id of the account associated with this token. */
-    sub: number;
+    readonly sub: number;
 
     /** When is this session issued? */
-    iat: Date;
+    readonly iat: Date;
 
     /** Contains either the expiry {@link Date} of this session, or null if it doesn't have a such date. */
-    exp: Date | null;
+    readonly exp: Date | null;
 };
 
 export const dbMessageSchema = new EntitySchema<DbMessage>({
@@ -74,13 +75,14 @@ export const dbMessageSchema = new EntitySchema<DbMessage>({
 
     columns: {
         id: { type: "int", primary: true, generated: true },
+        senderAccountId: { type: "int", primary: true },
+        senderAccountOrigin: { type: String, primary: true },
+        receiverId: { type: "int", primary: true },
+        receiverOrigin: { type: String, primary: true },
+        receiverType: { type: String, primary: true },
+        content: { type: String, nullable: false },
         createdAt: { type: Date, nullable: false },
         lastModifiedAt: { type: Date, nullable: false },
-        senderAccountId: { type: "int", nullable: false },
-        senderAccountOrigin: { type: String, nullable: false },
-        receiverId: { type: "int", nullable: false },
-        receiverOrigin: { type: String, nullable: false },
-        receiverType: { type: String, nullable: false },
     }
 });
 
@@ -90,7 +92,7 @@ export const dbRoomSchema = new EntitySchema<DbRoom>({
     columns: {
         id: { type: "int", primary: true },
         name: { type: String, nullable: false },
-        privateRoom: { type: Boolean, nullable: false, default: false },
+        isPublic: { type: Boolean, nullable: false, default: false },
         createdAt: { type: Date, nullable: false },
         ownerAccountId: { type: "int", nullable: false },
         ownerAccountOrigin: { type: String, nullable: false }

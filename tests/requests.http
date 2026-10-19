@@ -1,6 +1,7 @@
 @port = 5173
 @route = https://localhost:{{port}}
 @accounts = accounts
+@rooms = rooms
 @token = eyJhbGciOiJFZDI1NTE5In0.eyJqdGkiOiIxNiIsImlzcyI6Imh0dHBzOi8vbG9jYWxob3N0OjUxNzMvIiwic3ViIjoiMTMiLCJpYXQiOjE3OTIxNjgwODJ9.5gQX8Hi1m8CP1d5_n5cBd1wSeyrN7X1GeZEirtvcnS2rtfV9WqEzyVFsrO8Af3IDDrYKBt9UGNEYJzLQxN5GBg
 
 ###
@@ -49,13 +50,6 @@ DELETE {{route}}/shutdown
 GET {{route}}/server/public-key
 
 ###
-POST {{route}}/echo/app/wa/qwq?queryParam=test
-Content-Type: application/json
-Authorization: Bearer 0ea71069-74ca-43a3-9c64-effba5165d05
-
-{
-    "app": "wa",
-    "arr": [{ "key": "value" }, 4, true, "", null, []]
-}
+GET {{route}}/{{rooms}}
 
 ###

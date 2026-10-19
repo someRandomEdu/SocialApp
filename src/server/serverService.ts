@@ -1,11 +1,16 @@
 ﻿import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
-import { err, ok } from "../shared/utils.ts";
+import {err, ok, toUnixSeconds} from "../shared/utils.ts";
 import { AppService } from "./appService.ts";
 import * as z from "zod";
 import { serverApiRoute } from "./utils.ts";
 import { Request } from "express";
-import { decodeJwt, decodeProtectedHeader, JWTHeaderParameters, JWTPayload, jwtVerify, JWTVerifyOptions, SignJWT, SignOptions } from "jose";
-import { tryVerifyJwt } from "../shared/jwt.ts";
+import {
+    decodeJwt, decodeProtectedHeader,
+    jwtDecrypt, JWTHeaderParameters, JWTPayload, jwtVerify, JWTVerifyOptions, SignJWT, SignOptions
+} from "jose";
+import {signJwt, tryVerifyJwt} from "../shared/jwt.ts";
+import {UntypedId} from "../shared/id.ts";
+import {dbAccountSessionSchema, dbMessageSchema} from "./db.ts";
 
 const publicKeySchema = z.object({
     algorithm: z.string(),
@@ -15,7 +20,6 @@ const publicKeySchema = z.object({
 });
 
 export type PublicKey = z.infer<typeof publicKeySchema>;
-export const originServerHeaderName = "X-Origin-Server";
 
 export async function initServerService(app: AppService) {
     const e = app.expressInstance;
@@ -25,9 +29,10 @@ export async function initServerService(app: AppService) {
     const alphabet = Object.freeze({ alphabet: "base64url" });
     const { publicKey, privateKey } = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
     const publicKeyStr = new Uint8Array(await crypto.subtle.exportKey("spki", publicKey)).toBase64(alphabet);
+    const accountSessionRepo = app.dataSource.getRepository(dbAccountSessionSchema);
 
     e.get(`${route}/public-key`, (_, res) => {
-        return res.setHeader("content-type", "application/json").status(HttpStatusCodes.Ok).send({
+        return res.status(HttpStatusCodes.Ok).type("application/json").send({
             algorithm: "Ed25519",
             format: "spki",
             encoding: "base64url",
@@ -36,10 +41,9 @@ export async function initServerService(app: AppService) {
     });
 
     const keys: Record<string, CryptoKey> = Object.create(null);
+    keys[app.origin] = publicKey;
 
     return Object.freeze({
-        originServerHeaderName,
-
         async signJwt(header: JWTHeaderParameters, payload?: JWTPayload, signOptions?: SignOptions) {
             return await new SignJWT(payload).setProtectedHeader(header).sign(privateKey, signOptions);
         },
@@ -61,6 +65,23 @@ export async function initServerService(app: AppService) {
                 alphabet), algorithm, true, ["verify"]);
         },
 
+        tryGetBearerToken(rawToken: unknown) {
+            if (typeof rawToken !== "string") {
+                return err("Token's not a string!");
+            }
+
+            const s = rawToken.split(" ", 2);
+
+            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
+                return err("Token doesn't follow the Bearer scheme!");
+            }
+
+            return ok(s[1]!);
+        },
+
+        /**
+         * Returns an object describing the public key of a server, or undefined if that object can't be obtained.
+         */
         async publicKeyOfOrigin(origin: string) {
             const k = keys[origin];
 
@@ -90,43 +111,168 @@ export async function initServerService(app: AppService) {
             }
         },
 
-        /**
-         * Verifies and returns the header and the payload of a JWT if it's a valid JWT string 
-         * coming from the specified server inside that JWT string, or an error object containing the details of the error 
-         * caused when verifying.
-         */
-        async tryVerifyForeignToken(token: string, options?: JWTVerifyOptions) {
+        async generateAccountSessionToken(accountId: number, exp?: Date) {
+            const d = new Date();
+            const payload: JWTPayload = { iss: app.origin, sub: String(accountId), iat: toUnixSeconds(d) };
+
+            if (exp !== undefined) {
+                payload.exp = toUnixSeconds(exp);
+            }
+
+            return await signJwt(
+                { alg: "Ed25519", typ: "JWT" },
+                payload,
+                privateKey
+            );
+        },
+
+        async tryAuthSessionToken(token: string, options?: JWTVerifyOptions) {
             try {
-                const p = decodeJwt(token);
-                const origin = p.iss;
+                const unverifiedPayload = decodeJwt(token);
+                const origin = unverifiedPayload.iss;
 
                 if (typeof origin !== "string") {
-                    return err("Token origin is not a string!");
+                    return err(`Token doesn't have an origin!`);
                 }
 
                 const publicKey = await this.publicKeyOfOrigin(origin);
 
                 if (!publicKey) {
-                    return err(`Can't get the public key of the server ${origin}!`);
+                    return err(`Can't get the public key of the server ${origin}, or the public key is in an invalid format!`);
                 }
 
-                return ok(await jwtVerify(token, publicKey, options));
+                const { payload } = await jwtVerify(token, publicKey, options);
+                const id = Number(payload.sub);
+
+                if (typeof id !== "number") {
+                    return err(`Account Id is not valid!`);
+                }
+
+                return ok({ id, origin });
             } catch (e) {
                 return err(String(e));
             }
         },
 
-        /**
-         * Verifies and returns the header and the payload of a JWT if it's a valid JWT string coming from this server, 
-         * or an error object containing the details of the error caused when verifying.
-         */
-        async tryVerifyLocalToken(token: string, options?: JWTVerifyOptions) {
+        async tryAuthLocalSessionToken(token: string, options?: JWTVerifyOptions) {
             try {
-                return ok(await jwtVerify(token, publicKey, options));
+                const unverifiedPayload = decodeJwt(token);
+                const origin = unverifiedPayload.iss;
+
+                if (typeof origin !== "string") {
+                    return err(`Token doesn't have an origin!`);
+                }
+
+                const { payload } = await jwtVerify(token, publicKey, options);
+                const id = Number(payload.sub);
+
+                if (typeof id !== "number") {
+                    return err(`Account Id is not valid!`);
+                }
+
+                return ok({ id, origin });
             } catch (e) {
                 return err(String(e));
             }
-        }
+        },
+
+        async tryAuthRawBearerSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
+            if (typeof rawToken !== "string") {
+                return err("Token not found!");
+            }
+
+            const s = rawToken.split(" ", 2);
+
+            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
+                return err("Token doesn't follow the Bearer scheme!");
+            }
+
+            const token = s[1]!;
+            return await this.tryAuthSessionToken(token, options);
+        },
+
+        async tryAuthRawBearerLocalSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
+            if (typeof rawToken !== "string") {
+                return err("Token not found!");
+            }
+
+            const s = rawToken.split(" ", 2);
+
+            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
+                return err("Token doesn't follow the Bearer scheme!");
+            }
+
+            const token = s[1]!;
+            return await this.tryAuthLocalSessionToken(token, options);
+        },
+
+        // /**
+        //  * Verifies and returns the header and the payload of a JWT if it's a valid JWT string
+        //  * coming from the specified server inside that JWT string, or an error object containing the details of the error 
+        //  * caused when verifying.
+        //  */
+        // async tryVerifyForeignToken(token: string, options?: JWTVerifyOptions) {
+        //     try {
+        //         const payload = decodeJwt(token);
+        //         const origin = payload.iss;
+
+        //         if (typeof origin !== "string") {
+        //             return err("Token origin is not a string!");
+        //         }
+
+        //         const publicKey = await this.publicKeyOfOrigin(origin);
+
+        //         if (!publicKey) {
+        //             return err(`Can't get the public key of the server ${origin}!`);
+        //         }
+
+        //         return ok(await jwtVerify(token, publicKey, options));
+        //     } catch (e) {
+        //         return err(String(e));
+        //     }
+        // },
+
+        // /**
+        //  * Verifies and returns the header and the payload of a JWT if it's a valid JWT string coming from this server, 
+        //  * or an error object containing the details of the error caused when verifying.
+        //  */
+        // async tryVerifyLocalToken(token: string, options?: JWTVerifyOptions) {
+        //     try {
+        //         return ok(await jwtVerify(token, publicKey, options));
+        //     } catch (e) {
+        //         return err(String(e));
+        //     }
+        // },
+
+        // /**
+        //  * Verifies and returns the header and the payload of a JWT if it's a valid auth string 
+        //  * following the Bearer scheme using JWT coming from this server;
+        //  * or an error object containing the details of the error caused when verifying.
+        //  */
+        // async tryVerifyRawBearerForeignToken(rawToken: unknown, options?: JWTVerifyOptions) {
+        //     const token = this.tryGetBearerToken(rawToken);
+
+        //     if (!token.success) {
+        //         return token;
+        //     }
+
+        //     return this.tryVerifyForeignToken(token.data, options);
+        // },
+
+        // /**
+        //  * Verifies and returns the header and the payload of a JWT if it's a valid auth string 
+        //  * following the Bearer scheme using JWT coming from the specified server, 
+        //  * or an error object containing the details of the error caused when verifying.
+        //  */
+        // async tryVerifyRawBearerLocalToken(rawToken: unknown, options?: JWTVerifyOptions) {
+        //     const token = this.tryGetBearerToken(rawToken);
+
+        //     if (!token.success) {
+        //         return token;
+        //     }
+
+        //     return this.tryVerifyLocalToken(token.data, options);
+        // }
     } as const);
 }
 

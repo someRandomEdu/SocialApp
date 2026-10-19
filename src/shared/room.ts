@@ -10,9 +10,8 @@ export const roomSchema = z.object({
 });
 
 export const createRoomSchema = z.object({
-    roomName: z.string(),
-    ownerAccountId: accountSchema.shape.id,
-    ownerAccountOrigin: accountSchema.shape.origin
+    name: z.string(),
+    isPublic: z.boolean().default(false)
 });
 
 export type CreateRoomRequest = z.infer<typeof createRoomSchema>;

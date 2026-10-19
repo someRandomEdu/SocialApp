@@ -1,11 +1,8 @@
-import { Account, accountCredSchema, createAccountSchema, modifyAccountSchema, PublicAccount } from "../shared/account.ts";
+import { accountCredSchema, createAccountSchema, modifyAccountSchema, PublicAccount } from "../shared/account.ts";
 import { AppService } from "./appService.ts";
 import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
-import { err, ok, toUnixSeconds, tryParseInt } from "../shared/utils.ts";
-import { DbAccount, dbAccountSchema, DbAccountSession, dbAccountSessionSchema } from "./db.ts";
-import { AccountSession } from "../shared/account.ts";
+import { DbAccount, dbAccountSchema, dbAccountSessionSchema } from "./db.ts";
 import { ServerService } from "./serverService.ts";
-import { JWTPayload } from "jose";
 
 export async function initAccountService(app: AppService, serverService: ServerService) {
     const accRepo = app.dataSource.getRepository(dbAccountSchema);
@@ -25,71 +22,6 @@ export async function initAccountService(app: AppService, serverService: ServerS
         }
 
         return s[1]!;
-    }
-
-    async function dbSessionOfAccountBearerToken(rawToken: unknown) {
-        const token = tryGetBearerToken(rawToken);
-
-        if (typeof token !== "string") {
-            return err({
-                status: HttpStatusCodes.BadRequest,
-                title: `Token doesn't conform to the Bearer scheme!`
-            } satisfies ProblemDetail);
-        }
-
-        const jwt = await serverService.tryVerifyLocalToken(token);
-
-        if (!jwt.ok) {
-            return err({
-                status: HttpStatusCodes.BadRequest,
-                title: `An error occurred while verifying the token: ${jwt.error}`
-            } satisfies ProblemDetail);
-        }
-
-        const { payload } = jwt.value;
-        const sessionId = Number(payload.jti);
-
-        // invariant: there can be no sessions to a non-existent account (or one that doesn't live in this server)
-        // checking the accounts db is not needed as long as that invariant is upheld
-        const session = await accSessionRepo.findOneBy({ jti: sessionId });
-
-        if (!session) {
-            return err({
-                status: HttpStatusCodes.NotFound,
-                title: `Can't find a session token with that token Id!`
-            } satisfies ProblemDetail);
-        }
-
-        if (sessionId !== session.jti || payload.iat !== toUnixSeconds(session.iat)
-            || Number(payload.sub) !== session.sub) {
-            return err({
-                status: HttpStatusCodes.Unauthorized,
-                title: `Not a valid token!`
-            } satisfies ProblemDetail);
-        }
-
-        return ok(session);
-    }
-
-    async function dbAccountAndSessionOfAccountBearerToken(rawToken: unknown) {
-        const r = await dbSessionOfAccountBearerToken(rawToken);
-
-        if (!r.ok) {
-            return r;
-        }
-
-        const accId = r.value.sub;
-        const account = await accRepo.findOneBy({ id: accId });
-
-        // should not happen...
-        if (!account) {
-            return err({
-                status: HttpStatusCodes.NotFound,
-                title: `Can't find a session token with that token Id!`
-            } satisfies ProblemDetail);
-        }
-
-        return ok({ account, session: r.value });
     }
 
     // get acc by username. convenience wrapper... most operations will work on id instead
@@ -136,7 +68,6 @@ export async function initAccountService(app: AppService, serverService: ServerS
     });
 
     // login
-    // TODO: Allow more than one session per account or not?
     e.post(`${route}/sessions`, async (req, res) => {
         const cred = accountCredSchema.safeParse(req.body);
 
@@ -164,36 +95,9 @@ export async function initAccountService(app: AppService, serverService: ServerS
             } satisfies ProblemDetail);
         }
 
-        if (await accSessionRepo.findOneBy({ sub: a.id })) {
-            return res.status(HttpStatusCodes.Conflict).type("application/problem+json").send({
-                status: HttpStatusCodes.Conflict,
-                title: `Account's already logged in!`
-            } satisfies ProblemDetail); 
-        }
-
-        const r: DbAccountSession = await accSessionRepo.save({
-            iat: new Date(),
-            sub: a.id,
-            exp: null
-        } satisfies Partial<DbAccountSession>);
-
-        const accSession: AccountSession = { ...r, iss: app.url };
-
-        let jwt: JWTPayload = {
-            jti: String(accSession.jti),
-            iss: String(accSession.iss),
-            sub: String(accSession.sub),
-            iat: toUnixSeconds(accSession.iat)
-        };
-
-        if (accSession.exp) {
-            jwt.exp = toUnixSeconds(accSession.exp);
-        }
-
-        const acc: Account = {
+        const acc: PublicAccount = {
             id: a.id,
             name: a.name,
-            password: a.password,
             origin: app.origin,
             description: a.description,
             createdAt: a.createdAt,
@@ -201,21 +105,22 @@ export async function initAccountService(app: AppService, serverService: ServerS
         };
 
         return res.status(HttpStatusCodes.Created).send({
-            acc, 
-            session: accSession, 
-            jwt: await serverService.signJwt({ alg: "Ed25519" }, jwt) 
+            acc, jwt: await serverService.generateAccountSessionToken(a.id)
         });
     });
 
     // logout
     e.delete(`${route}/sessions`, async (req, res) => {
-        const r = await dbSessionOfAccountBearerToken(req.headers.authorization);
-
-        if (!r.ok) {
-            return res.status(r.error.status).send(r.error);
+        const r = await serverService.tryAuthRawBearerSessionToken(
+            req.headers.authorization);
+    
+        if (!r.success) {
+            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+                status: HttpStatusCodes.Unauthorized,
+                title: r.error
+            } satisfies ProblemDetail);
         }
 
-        await accSessionRepo.remove(r.value);
         return res.sendStatus(HttpStatusCodes.NoContent);
     });
 
@@ -256,17 +161,19 @@ export async function initAccountService(app: AppService, serverService: ServerS
 
     // modify account
     e.put(`${route}`, async (req, res) => {
-        const v = await dbSessionOfAccountBearerToken(req.headers.authorization);
+        const v = await serverService.tryAuthRawBearerLocalSessionToken(req.headers.authorization);
 
-        if (!v.ok) {
-            return res.status(v.error.status).type("application/problem+json").send(v.error);
+        if (!v.success) {
+            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+                status: HttpStatusCodes.Unauthorized,
+                title: v.error
+            } satisfies ProblemDetail);
         }
 
-        const accId = v.value.sub;
-        const a = await accRepo.findOneBy({ id: accId });
+        const { id } = v.data;
+        const a = await accRepo.findOneBy({ id });
 
         if (!a) {
-            // not supposed to happen, considering the invariant mentioned above...
             return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
                 status: HttpStatusCodes.NotFound,
                 title: `Can't find the account with the matching account Id!`
@@ -278,7 +185,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
         if (!d.success) {
             return res.status(HttpStatusCodes.BadRequest).type("application/problem+json").send({
                 status: HttpStatusCodes.NotFound,
-                title: `Request body didn't follow this schema { name?: string; password?: string; description?: string; }!`
+                title: `"name", "password" and "description" must be absent or strings!`
             } satisfies ProblemDetail);
         }
 
@@ -288,7 +195,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
             if (await accRepo.findOneBy({ name })) {
                 return res.status(HttpStatusCodes.Conflict).type("application/problem+json").send({
                     status: HttpStatusCodes.Conflict,
-                    title: `An account with the name ${name} already exists!`
+                    title: `An account with the name ${name} within this server already exists!`
                 } satisfies ProblemDetail);
             }
 
@@ -309,18 +216,27 @@ export async function initAccountService(app: AppService, serverService: ServerS
 
     // delete account
     e.delete(`${route}`, async (req, res) => {
-        const v = await dbAccountAndSessionOfAccountBearerToken(req.headers.authorization);
+        const v = await serverService.tryAuthRawBearerLocalSessionToken(req.headers.authorization);
 
-        if (!v.ok) {
-            return res.status(v.error.status).type("application/problem+json").send(v.error);
+        if (!v.success) {
+            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+                status: HttpStatusCodes.Unauthorized,
+                title: v.error
+            } satisfies ProblemDetail);
         }
 
-        const { account, session } = v.value;
-        const accId = account.id;
-        await accRepo.remove(account);
-        await accSessionRepo.remove(session);
-        await accSessionRepo.delete({ sub: accId });
+        const { id } = v.data;
+        const acc = await accRepo.findOneBy({ id });
 
+        if (!acc) {
+            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
+                status: HttpStatusCodes.NotFound,
+                title: "Can't find an account with that Id!"
+            })
+        }
+
+        await accRepo.remove(acc);
+        
         // NOTE: setting the status code alone is not enough to end a request!
         return res.sendStatus(HttpStatusCodes.NoContent);
     });

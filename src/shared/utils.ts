@@ -7,8 +7,8 @@ export type Fn<Ts extends readonly any[] = [], R = void> = (...params: Ts) => R;
 export type LoosePartial<T> = { [P in keyof T]?: T[P] | undefined };
 
 export type Expand<T> = { [K in keyof T]: T[K] };
-export type Result<T, E> = { ok: true, value: T } | { ok: false, error: E };
-export type Option<T> = { value: T } | undefined;
+export type Result<T, E> = { success: true, data: T } | { success: false, error: E };
+export type Option<T> = { data: T } | undefined;
 
 export type TypedArrayConstructor = Int8ArrayConstructor | Uint8ArrayConstructor | Uint8ClampedArrayConstructor |
     Int16ArrayConstructor | Uint16ArrayConstructor | Int32ArrayConstructor | Uint32ArrayConstructor |
@@ -58,20 +58,20 @@ export function typeOfStrict(v: unknown) {
     return v === null ? "null" : typeof v;
 }
 
-export function some<T>(value: T): Option<T> {
-    return { value };
+export function some<T>(data: T): Option<T> {
+    return { data };
 }
 
 export function none<T>(): Option<T> {
     return undefined;
 }
 
-export function ok<T, E = never>(value: T): Result<T, E> {
-    return { ok: true, value };
+export function ok<T, E = never>(data: T): Result<T, E> {
+    return { success: true, data };
 }
 
 export function err<E, T = never>(error: E): Result<T, E> {
-    return { ok: false, error };
+    return { success: false, error };
 }
 
 export function tryInvoke<T>(fn: () => T) { 
@@ -108,7 +108,7 @@ export function isInteger(v: unknown): v is number {
     return Number.isInteger(v);
 }
 
-export function isSafeInteger(v: unknown) : v is number {
+export function isSafeInteger(v: unknown): v is number {
     return Number.isSafeInteger(v);
 }
 
