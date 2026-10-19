@@ -204,75 +204,7 @@ export async function initServerService(app: AppService) {
 
             const token = s[1]!;
             return await this.tryAuthLocalSessionToken(token, options);
-        },
-
-        // /**
-        //  * Verifies and returns the header and the payload of a JWT if it's a valid JWT string
-        //  * coming from the specified server inside that JWT string, or an error object containing the details of the error 
-        //  * caused when verifying.
-        //  */
-        // async tryVerifyForeignToken(token: string, options?: JWTVerifyOptions) {
-        //     try {
-        //         const payload = decodeJwt(token);
-        //         const origin = payload.iss;
-
-        //         if (typeof origin !== "string") {
-        //             return err("Token origin is not a string!");
-        //         }
-
-        //         const publicKey = await this.publicKeyOfOrigin(origin);
-
-        //         if (!publicKey) {
-        //             return err(`Can't get the public key of the server ${origin}!`);
-        //         }
-
-        //         return ok(await jwtVerify(token, publicKey, options));
-        //     } catch (e) {
-        //         return err(String(e));
-        //     }
-        // },
-
-        // /**
-        //  * Verifies and returns the header and the payload of a JWT if it's a valid JWT string coming from this server, 
-        //  * or an error object containing the details of the error caused when verifying.
-        //  */
-        // async tryVerifyLocalToken(token: string, options?: JWTVerifyOptions) {
-        //     try {
-        //         return ok(await jwtVerify(token, publicKey, options));
-        //     } catch (e) {
-        //         return err(String(e));
-        //     }
-        // },
-
-        // /**
-        //  * Verifies and returns the header and the payload of a JWT if it's a valid auth string 
-        //  * following the Bearer scheme using JWT coming from this server;
-        //  * or an error object containing the details of the error caused when verifying.
-        //  */
-        // async tryVerifyRawBearerForeignToken(rawToken: unknown, options?: JWTVerifyOptions) {
-        //     const token = this.tryGetBearerToken(rawToken);
-
-        //     if (!token.success) {
-        //         return token;
-        //     }
-
-        //     return this.tryVerifyForeignToken(token.data, options);
-        // },
-
-        // /**
-        //  * Verifies and returns the header and the payload of a JWT if it's a valid auth string 
-        //  * following the Bearer scheme using JWT coming from the specified server, 
-        //  * or an error object containing the details of the error caused when verifying.
-        //  */
-        // async tryVerifyRawBearerLocalToken(rawToken: unknown, options?: JWTVerifyOptions) {
-        //     const token = this.tryGetBearerToken(rawToken);
-
-        //     if (!token.success) {
-        //         return token;
-        //     }
-
-        //     return this.tryVerifyLocalToken(token.data, options);
-        // }
+        }
     } as const);
 }
 

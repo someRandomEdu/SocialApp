@@ -6,7 +6,6 @@ import { ServerService } from "./serverService.ts";
 
 export async function initAccountService(app: AppService, serverService: ServerService) {
     const accRepo = app.dataSource.getRepository(dbAccountSchema);
-    const accSessionRepo = app.dataSource.getRepository(dbAccountSessionSchema);
     const e = app.expressInstance;
     const route = "/accounts";
 
