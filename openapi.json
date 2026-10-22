@@ -24,7 +24,7 @@
     ],
 
     "paths": {
-        "/server/publicKey": {
+        "/server/public-key": {
             "get": {
                 "responses": {
                     "200": {

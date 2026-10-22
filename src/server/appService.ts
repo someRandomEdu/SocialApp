@@ -56,7 +56,7 @@ export async function initAppService(domain: string, port: number) {
         console.log(`Hosting the Api at ${url.origin}`);
     });
 
-    return new AppService(url, expressInstance, server, await createDataSource());
+    return new AppService(url, expressInstance, server, await createDataSource(port));
 }
 
 // export const app = await initApp();

@@ -122,3 +122,13 @@ export function tryParseSafeInt(v: unknown): Result<number, string> {
 export function getProp<T extends object, K extends keyof T>(obj: T, key: K): Option<T[K]> {
     return key in obj ? some(obj[key]) : none<T[K]>();
 }
+
+export function setProp<T extends object, K extends PropertyKey, V>(obj: T, key: K, value: V): Omit<T, K> & { [_ in K]: V } {
+    Reflect.defineProperty(obj, key, { value });
+    return obj as any;
+}
+
+export function delProp<T extends object, K extends keyof T>(obj: T, key: K): Omit<T, K> {
+    delete obj[key];
+    return obj;
+}

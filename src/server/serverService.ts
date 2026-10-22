@@ -1,16 +1,11 @@
-﻿import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
-import {err, ok, toUnixSeconds} from "../shared/utils.ts";
+﻿import { HttpStatusCodes } from "../shared/net.ts";
+import { err, ok, toUnixSeconds } from "../shared/utils.ts";
 import { AppService } from "./appService.ts";
 import * as z from "zod";
 import { serverApiRoute } from "./utils.ts";
-import { Request } from "express";
-import {
-    decodeJwt, decodeProtectedHeader,
-    jwtDecrypt, JWTHeaderParameters, JWTPayload, jwtVerify, JWTVerifyOptions, SignJWT, SignOptions
-} from "jose";
-import {signJwt, tryVerifyJwt} from "../shared/jwt.ts";
-import {UntypedId} from "../shared/id.ts";
-import {dbAccountSessionSchema, dbMessageSchema} from "./db.ts";
+import { decodeJwt, JWTHeaderParameters, JWTPayload, jwtVerify, JWTVerifyOptions, SignJWT, SignOptions } from "jose";
+import { signJwt, tryVerifyJwt } from "../shared/jwt.ts";
+import { DbAccount } from "./db.ts";
 
 const publicKeySchema = z.object({
     algorithm: z.string(),
@@ -29,7 +24,6 @@ export async function initServerService(app: AppService) {
     const alphabet = Object.freeze({ alphabet: "base64url" });
     const { publicKey, privateKey } = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
     const publicKeyStr = new Uint8Array(await crypto.subtle.exportKey("spki", publicKey)).toBase64(alphabet);
-    const accountSessionRepo = app.dataSource.getRepository(dbAccountSessionSchema);
 
     e.get(`${route}/public-key`, (_, res) => {
         return res.status(HttpStatusCodes.Ok).type("application/json").send({
@@ -42,6 +36,7 @@ export async function initServerService(app: AppService) {
 
     const keys: Record<string, CryptoKey> = Object.create(null);
     keys[app.origin] = publicKey;
+    console.log("Initialized server service!");
 
     return Object.freeze({
         async signJwt(header: JWTHeaderParameters, payload?: JWTPayload, signOptions?: SignOptions) {
@@ -111,22 +106,37 @@ export async function initServerService(app: AppService) {
             }
         },
 
-        async generateAccountSessionToken(accountId: number, exp?: Date) {
-            const d = new Date();
-            const payload: JWTPayload = { iss: app.origin, sub: String(accountId), iat: toUnixSeconds(d) };
+        async generateAccountSessionToken(account: DbAccount, exp?: Date) {
+            const payload: JWTPayload = { 
+                iss: app.origin, 
+                sub: String(account.id), 
+                iat: toUnixSeconds(new Date()), 
+                jti: crypto.randomUUID()
+            };
 
             if (exp !== undefined) {
                 payload.exp = toUnixSeconds(exp);
             }
 
-            return await signJwt(
-                { alg: "Ed25519", typ: "JWT" },
-                payload,
-                privateKey
-            );
+            return await signJwt({ alg: "Ed25519", typ: "JWT" }, payload, privateKey);
         },
 
-        async tryAuthSessionToken(token: string, options?: JWTVerifyOptions) {
+        async generateServerSessionToken(exp?: Date) {
+            const payload: JWTPayload = { 
+                iss: app.origin, 
+                sub: app.origin, 
+                iat: toUnixSeconds(new Date()), 
+                jti: crypto.randomUUID()
+            };
+
+            if (exp !== undefined) {
+                payload.exp = toUnixSeconds(exp);
+            }
+
+            return await signJwt({ alg: "Ed25519", typ: "JWT" }, payload, privateKey);
+        },
+
+        async tryAuthAccountSessionToken(token: string, options?: JWTVerifyOptions) {
             try {
                 const unverifiedPayload = decodeJwt(token);
                 const origin = unverifiedPayload.iss;
@@ -144,7 +154,7 @@ export async function initServerService(app: AppService) {
                 const { payload } = await jwtVerify(token, publicKey, options);
                 const id = Number(payload.sub);
 
-                if (typeof id !== "number") {
+                if (!Number.isInteger(id)) {
                     return err(`Account Id is not valid!`);
                 }
 
@@ -154,7 +164,7 @@ export async function initServerService(app: AppService) {
             }
         },
 
-        async tryAuthLocalSessionToken(token: string, options?: JWTVerifyOptions) {
+        async tryAuthLocalAccountSessionToken(token: string, options?: JWTVerifyOptions) {
             try {
                 const unverifiedPayload = decodeJwt(token);
                 const origin = unverifiedPayload.iss;
@@ -176,7 +186,7 @@ export async function initServerService(app: AppService) {
             }
         },
 
-        async tryAuthRawBearerSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
+        async tryAuthRawBearerAccountSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
             if (typeof rawToken !== "string") {
                 return err("Token not found!");
             }
@@ -188,10 +198,10 @@ export async function initServerService(app: AppService) {
             }
 
             const token = s[1]!;
-            return await this.tryAuthSessionToken(token, options);
+            return await this.tryAuthAccountSessionToken(token, options);
         },
 
-        async tryAuthRawBearerLocalSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
+        async tryAuthRawBearerLocalAccountSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
             if (typeof rawToken !== "string") {
                 return err("Token not found!");
             }
@@ -203,7 +213,50 @@ export async function initServerService(app: AppService) {
             }
 
             const token = s[1]!;
-            return await this.tryAuthLocalSessionToken(token, options);
+            return await this.tryAuthLocalAccountSessionToken(token, options);
+        },
+
+        async tryAuthServerSessionToken(token: string, options?: JWTVerifyOptions) {
+            try {
+                const unverifiedPayload = decodeJwt(token);
+                const origin = unverifiedPayload.iss;
+
+                if (typeof origin !== "string") {
+                    return err("Token doesn't have an origin!");
+                }
+
+                const publicKey = await this.publicKeyOfOrigin(origin);
+
+                if (!publicKey) {
+                    return err(`Can't get the public key of the server ${origin}, or the public key is in an invalid format!`);
+                }
+
+                const { payload } = await jwtVerify(token, publicKey, options);
+                const sub = payload.sub;
+
+                if (sub !== origin) {
+                    return err("Jwt sub property doesn't point to the same issued server!")
+                }
+
+                return ok(origin);
+            } catch (e) {
+                return err(String(e));
+            }
+        },
+
+        async tryAuthRawBearerServerSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
+            if (typeof rawToken !== "string") {
+                return err("Token not found!");
+            }
+
+            const s = rawToken.split(" ", 2);
+
+            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
+                return err("Token doesn't follow the Bearer scheme!");
+            }
+
+            const token = s[1]!;
+            return this.tryAuthServerSessionToken(token, options);
         }
     } as const);
 }

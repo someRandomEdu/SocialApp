@@ -14,10 +14,10 @@
     },
     "scripts": {
         "build": "tsc && vite build",
-        "server": "node --enable-source-maps dist/server/main.js",
+        "server": "node --enable-source-maps --use-system-ca dist/server/main.js",
         "client": "vite",
-        "server1": "node --enable-source-maps dist/server/main.js 5173",
-        "server2": "node --enable-source-maps dist/server/main.js 5174"
+        "server1": "node --enable-source-maps --use-system-ca dist/server/main.js 5173",
+        "server2": "node --enable-source-maps --use-system-ca dist/server/main.js 5174"
     },
     "dependencies": {
         "@emotion/react": "^11.14.0",
@@ -25,9 +25,11 @@
         "@fontsource/roboto": "^5.3.0",
         "@mui/icons-material": "^9.4.0",
         "@mui/material": "^9.4.0",
+        "@ngrok/ngrok": "^1.7.0",
         "@types/express": "^5.0.6",
         "@types/react": "^19.3.0",
         "@types/react-dom": "^19.3.0",
+        "bcryptjs": "^3.0.3",
         "better-sqlite3": "^12.11.1",
         "cookie-parser": "^1.4.7",
         "express": "^5.2.1",

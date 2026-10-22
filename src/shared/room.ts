@@ -1,17 +1,10 @@
 import * as z from "zod";
-import { accountSchema } from "./account.ts";
 import { UntypedId } from "./id.ts";
-
-export const roomSchema = z.object({
-    id: z.int(),
-    name: z.string(),
-    origin: z.string(),
-    createdAt: z.date()
-});
 
 export const createRoomSchema = z.object({
     name: z.string(),
-    isPublic: z.boolean().default(false)
+    isPublic: z.boolean().default(false),
+    description: z.string().default("")
 });
 
 export type CreateRoomRequest = z.infer<typeof createRoomSchema>;

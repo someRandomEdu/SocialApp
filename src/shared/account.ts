@@ -19,51 +19,39 @@ export const accountSchema = z.object({
     lastModifiedAt: z.coerce.date(),
 });
 
-export type Account = z.infer<typeof accountSchema>;
-export type PublicAccount = Omit<Account, "password">;
+export type Account = {
+    readonly id: number;
+    password: string;
+    name: string;
+    readonly origin: string;
+    description: string;
+    readonly createdAt: Date;
+    lastModifiedAt: Date;
+};
 
-export const createAccountSchema = accountSchema.omit({
-    id: true,
-    origin: true,
-    createdAt: true,
-    lastModifiedAt: true
+export type PublicAccount = {
+    readonly id: number;
+    name: string;
+    readonly origin: string;
+    description: string;
+    readonly createdAt: Date;
+    lastModifiedAt: Date;
+};
+
+export const createAccountSchema = z.object({
+    name: z.string(),
+    password: z.string(),
+    description: z.string().default("")
 });
 
 export type CreateAccount = z.infer<typeof createAccountSchema>;
 
-export const accountCredSchema = accountSchema.omit({
-    id: true,
-    origin: true,
-    description: true,
-    createdAt: true,
-    lastModifiedAt: true
+export const accountCredSchema = createAccountSchema.omit({
+    description: true
 });
 
 export type AccountCred = z.infer<typeof accountCredSchema>;
 
-export const modifyAccountSchema = accountSchema.omit({
-    id: true,
-    origin: true,
-    createdAt: true,
-    lastModifiedAt: true
-});
+export const modifyAccountSchema = createAccountSchema.exactPartial();
 
 export type ModifyAccount = z.infer<typeof modifyAccountSchema>;
-
-/** A {@link JWTPayload}-like type representing a session. */
-export type AccountSession = {
-    /** The Id of the session object itself. */
-    readonly jti: number;
-
-    /** The origin {@link URL} of the home server of that account. */
-    readonly iss: URL;
-
-    /** The Id of the account associated with this token. */
-    readonly sub: number;
-
-    /** When is this session issued? */
-    readonly iat: Date;
-
-    /** Contains either the expiry {@link Date} of this session, or null if it doesn't have a such date. */
-    readonly exp: Date | null;
-};

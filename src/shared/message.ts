@@ -1,8 +1,8 @@
-import { accountIdSchema, roomIdSchema, untypedIdSchema } from "./id.ts";
+import { accountIdSchema, EntityTypes, roomIdSchema, untypedIdSchema } from "./id.ts";
 import * as z from "zod";
 
 export const messageSchema = z.object({
-    id: z.int(),
+    id: z.string(),
     senderAccount: untypedIdSchema,
     receiver: accountIdSchema.or(roomIdSchema),
     content: z.string(),
@@ -13,8 +13,8 @@ export const messageSchema = z.object({
 export type Message = z.infer<typeof messageSchema>;
 
 export const createMessageSchema = z.object({
-    senderAccount: untypedIdSchema,
     receiverId: z.int(),
+    receiverType: z.literal([EntityTypes.Account, EntityTypes.Room]),
     content: z.string(),
 });
 

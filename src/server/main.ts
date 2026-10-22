@@ -1,16 +1,17 @@
-import { HttpStatusCodes } from "../shared/net.ts";
+import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
 import { initAppService } from "./appService.ts";
 import { initAccountService } from "./accountService.ts";
 import { initServerService } from "./serverService.ts";
+import { initRoomService } from "./roomService.ts";
 
 // TODO: Custom routes support?
 async function main(argv: readonly string[]) {
     console.log("Initializing the server!");
     const port = argv[2];
-    console.log(port);
     const app = await initAppService("localhost", Number(port ?? 5173));
     const serverService = await initServerService(app);
     const accountService = await initAccountService(app, serverService);
+    const roomService = await initRoomService(app, serverService);
 
     app.expressInstance.get("/", async (_, res) => {
         res.status(HttpStatusCodes.Ok).send("Server's entry point!");
@@ -25,11 +26,11 @@ async function main(argv: readonly string[]) {
         });
     });
 
-    app.expressInstance.delete("/shutdown", async (req, res) => {
-        app.server.close();
-        res.status(HttpStatusCodes.Ok).send("Shutting down the server...");
-        console.log("Shutting down the server...");
-    });
+    // app.expressInstance.delete("/shutdown", async (req, res) => {
+    //     app.server.close();
+    //     res.status(HttpStatusCodes.Ok).send("Shutting down the server...");
+    //     console.log("Shutting down the server...");
+    // });
 
     console.log("Finished initializing the server!");
 }

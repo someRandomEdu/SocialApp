@@ -5,291 +5,257 @@ import { DbMessage, dbMessageSchema } from "./db";
 import { RoomService } from "./roomService";
 import { ServerService } from "./serverService";
 
-export async function initRoomMessageService(app: AppService, serverService: ServerService, roomService: RoomService) {
-    const e = app.expressInstance;
-    const messageRepo = app.dataSource.getRepository(dbMessageSchema);
-    const route = "messages";
+export async function initRoomMessageService(appService: AppService, serverService: ServerService, roomService: RoomService) {
+    const e = appService.expressInstance;
+    const route = "/messages/rooms";
+    const msgRepo = appService.dataSource.getRepository(dbMessageSchema);
 
-    // creates a room
-    e.post(`${route}/room`, async (req, res) => {
-        const data = createMessageSchema.safeParse(req.body);
+    e.get(`${route}/:roomId`, async (req, res) => {
+        const roomId = Number(req.params.roomId);
+        const room = await roomService.findOneRoomBy({ id: roomId });
 
-        if (!data.success) {
-            return res.status(HttpStatusCodes.BadRequest).type("application/problem+json").send({
-                status: HttpStatusCodes.BadRequest,
-                title: `Wrong body format!`
+        if (!room) {
+            return res.status(HttpStatusCodes.NotFound).send({
+                status: HttpStatusCodes.NotFound,
+                title: "Can't find a room with such Id!"
             } satisfies ProblemDetail);
         }
 
-        const v = await serverService.tryAuthRawBearerSessionToken(
-            req.headers.authorization);
+        const a = req.headers.authorization;
+
+        if (a === undefined) {
+            if (!room.isPublic) {
+                return res.status(HttpStatusCodes.Forbidden).send({
+                    status: HttpStatusCodes.Forbidden,
+                    title: "Can't get messages of a private room without joining it!"
+                } satisfies ProblemDetail);
+            }
+        } else {
+            const v = await serverService.tryAuthRawBearerAccountSessionToken(a);
+
+            if (!v.success) {
+                return res.status(HttpStatusCodes.Unauthorized).send({
+                    status: HttpStatusCodes.Unauthorized,
+                    title: `Error occurred while validating session token: ${v.error}`
+                } satisfies ProblemDetail);
+            }
+
+            if (!await roomService.accountIsInRoom(v.data, roomId)) {
+                return res.status(HttpStatusCodes.Forbidden).send({
+                    status: HttpStatusCodes.Forbidden,
+                    title: "Can't get messages of a private room without joining it!"
+                } satisfies ProblemDetail);
+            }
+        }
+
+        return res.status(HttpStatusCodes.Ok).send(msgRepo.findBy({ receiverId: roomId, receiverType: "room" }));
+    });
+
+    e.post(`${route}/:roomId`, async (req, res) => {
+        const d = createMessageSchema.safeParse(req.body);
+        
+        if (!d.success) {
+            return res.status(HttpStatusCodes.BadRequest).send({
+                status: HttpStatusCodes.BadRequest,
+                title: "Invalid body format!"
+            } satisfies ProblemDetail);
+        }
+
+        const v = await serverService.tryAuthRawBearerAccountSessionToken(req.headers.authorization);
 
         if (!v.success) {
-            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
-                status: HttpStatusCodes.Unauthorized,
-                title: `Error occurred while validating token: ${v.error}`
+            return res.status(HttpStatusCodes.Unauthorized).send({
+                status: HttpStatusCodes.Unauthorized
             } satisfies ProblemDetail);
         }
 
+        const { receiverId, receiverType, content } = d.data;
         const { id, origin } = v.data;
-        const { receiverId, content } = data.data;
-
-        if (!(await roomService.isPublicRoom(receiverId) || await roomService.accountIsInRoom({
-            id: id, origin: origin
-        }, receiverId))) {
-            return res.status(HttpStatusCodes.Forbidden).type("application/problem+json").send({
-                status: HttpStatusCodes.Forbidden,
-                title: `Account hasn't joined this private room!`
-            } satisfies ProblemDetail);
-        }
-
         const now = new Date();
 
-        return res.status(HttpStatusCodes.Created).send(await messageRepo.save({
+        const r = await msgRepo.save({
+            id: crypto.randomUUID(),
             senderAccountId: id,
             senderAccountOrigin: origin,
             receiverId,
-            receiverOrigin: app.origin,
-            receiverType: "room",
+            receiverType,
             content,
             createdAt: now,
             lastModifiedAt: now
-        } satisfies Partial<DbMessage>));
+        } satisfies Partial<DbMessage>);
+
+        return res.status(HttpStatusCodes.Created).send(r);
     });
 
-    // gets all messages of a room with the specified Id
-    e.get(`${route}/room/:roomId/messages`, async (req, res) => {
+    e.get(`${route}/:roomId/:msgId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });
 
         if (!room) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
+            return res.status(HttpStatusCodes.NotFound).send({
                 status: HttpStatusCodes.NotFound,
-                title: `Can't find a room with such Id!`
+                title: "Can't find a room with that room Id!"
             } satisfies ProblemDetail);
         }
 
         const a = req.headers.authorization;
 
-        if (typeof a !== "string") {
+        if (a === undefined) {
             if (!room.isPublic) {
-                return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+                return res.status(HttpStatusCodes.Unauthorized).send({
                     status: HttpStatusCodes.Unauthorized,
-                    title: `Account hasn't joined this private room!`
+                    title: "Can't view messages of a private room without joining it!"
                 } satisfies ProblemDetail);
             }
         } else {
-            const v = await serverService.tryAuthRawBearerLocalSessionToken(a);
+            const v = await serverService.tryAuthRawBearerAccountSessionToken(a);
 
             if (!v.success) {
-                return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+                return res.status(HttpStatusCodes.Unauthorized).send({
                     status: HttpStatusCodes.Unauthorized,
-                    title: `Error occurred while validating token: ${v.error}`
+                    title: `Error while validating auth token: ${v.error}`
                 } satisfies ProblemDetail);
             }
 
-            const { id, origin } = v.data;
-
-            if (!(await roomService.isPublicRoom(roomId) || await roomService.accountIsInRoom({
-                id: id, origin: origin
-            }, roomId))) {
-                return res.status(HttpStatusCodes.Forbidden).type("application/problem+json").send({
-                    status: HttpStatusCodes.Forbidden,
-                    title: `Account hasn't joined this private room!`
+            if (!await roomService.accountIsInRoom(v.data, roomId)) {
+                return res.status(HttpStatusCodes.Unauthorized).send({
+                    status: HttpStatusCodes.Unauthorized,
+                    title: "Account hasn't joined this room!"
                 } satisfies ProblemDetail);
             }
         }
+        
+        const msgId = req.params.msgId;
+        const m = await msgRepo.findOneBy({ id: msgId, receiverId: roomId, receiverType: "room" });
 
-        return res.status(HttpStatusCodes.Ok).send(await messageRepo.findBy({ receiverId: roomId, receiverType: "room" }));
+        if (!m) {
+            return res.status(HttpStatusCodes.NotFound).send({
+                status: HttpStatusCodes.NotFound,
+                title: "Can't find a message with such Id!"
+            } satisfies ProblemDetail); 
+        }
+
+        return res.status(HttpStatusCodes.Created).send(m);
     });
 
-    // gets a message of a room with a specific room Id and a message Id
-    e.get(`${route}/room/:roomId/messages/:msgId`, async (req, res) => {
+    e.put(`${route}/:roomId/:msgId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });
 
         if (!room) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
+            return res.status(HttpStatusCodes.NotFound).send({
                 status: HttpStatusCodes.NotFound,
-                title: `Can't find a room with such Id!`
+                title: "Can't find a room with that room Id!"
             } satisfies ProblemDetail);
         }
 
         const a = req.headers.authorization;
-
-        if (typeof a !== "string") {
-            if (!room.isPublic) {
-                return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
-                    status: HttpStatusCodes.Unauthorized,
-                    title: `Account hasn't joined this private room!`
-                } satisfies ProblemDetail);
-            }
-        } else {
-            const v = await serverService.tryAuthRawBearerSessionToken(a);
-
-            if (!v.success) {
-                return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
-                    status: HttpStatusCodes.Unauthorized,
-                    title: `Error occurred while validating token: ${v.error}`
-                } satisfies ProblemDetail);
-            }
-
-            const { id, origin } = v.data;
-
-            if (!(await roomService.isPublicRoom(roomId) || await roomService.accountIsInRoom({
-                id: id, origin: origin
-            }, roomId))) {
-                return res.status(HttpStatusCodes.Forbidden).type("application/problem+json").send({
-                    status: HttpStatusCodes.Forbidden,
-                    title: `Account hasn't joined this private room!`
-                } satisfies ProblemDetail);
-            }
-        }
-
-        const msgId = Number(req.params.msgId);
-
-        const msg = await messageRepo.findOneBy({ 
-            id: msgId, 
-            receiverId: roomId, 
-            receiverOrigin: app.origin, 
-            receiverType: "room" 
-        });
-
-        if (!msg) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
-                status: HttpStatusCodes.NotFound,
-                title: `Can't find a message with such Id!`
-            } satisfies ProblemDetail);
-        }
-
-        return res.status(HttpStatusCodes.Ok).send(msg);
-    });
-
-    // modifies the content of a room message with the specified Id
-    e.put(`${route}/room/:roomId/messages/:msgId`, async (req, res) => {
-        const roomId = Number(req.params.roomId);
-        const room = await roomService.findOneRoomBy({ id: roomId });
-
-        if (!room) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
-                status: HttpStatusCodes.NotFound,
-                title: `Can't find a room with such Id!`
-            } satisfies ProblemDetail);
-        }
-
-        const a = req.headers.authorization;
-
-        if (typeof a !== "string") {
-            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
-                status: HttpStatusCodes.Unauthorized,
-                title: `Account hasn't joined this private room!`
-            } satisfies ProblemDetail);
-        }
-
-        const v = await serverService.tryAuthRawBearerSessionToken(a);
+        const v = await serverService.tryAuthRawBearerAccountSessionToken(a);
 
         if (!v.success) {
-            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+            return res.status(HttpStatusCodes.Unauthorized).send({
                 status: HttpStatusCodes.Unauthorized,
-                title: `Error occurred while validating token: ${v.error}`
+                title: `Error while validating auth token: ${v.error}`
             } satisfies ProblemDetail);
         }
 
-        const { id, origin } = v.data;
-        const msgId = Number(req.params.msgId);
+        if (!await roomService.accountIsInRoom(v.data, roomId)) {
+            return res.status(HttpStatusCodes.Unauthorized).send({
+                status: HttpStatusCodes.Unauthorized,
+                title: "Account hasn't joined this room!"
+            } satisfies ProblemDetail);
+        }
 
-        const msg = await messageRepo.findOneBy({
-            id: msgId,
-            receiverId: roomId,
-            receiverOrigin: app.origin,
-            receiverType: "room"
-        });
+        const msgId = req.params.msgId;
+        const m = await msgRepo.findOneBy({ id: msgId, receiverId: roomId, receiverType: "room" });
 
-        if (!msg) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
+        if (!m) {
+            return res.status(HttpStatusCodes.NotFound).send({
                 status: HttpStatusCodes.NotFound,
-                title: `Can't find a message with such Id!`
-            } satisfies ProblemDetail);
+                title: "Can't find a message with such Id!"
+            } satisfies ProblemDetail); 
         }
 
-        if (msg.senderAccountId !== id || msg.senderAccountOrigin !== origin) {
-            return res.status(HttpStatusCodes.Forbidden).type("application/problem+json").send({
+        if (m.senderAccountId !== v.data.id || m.senderAccountOrigin !== v.data.origin) {
+            return res.status(HttpStatusCodes.Forbidden).send({
                 status: HttpStatusCodes.Forbidden,
-                title: `Can't modify the message of another user!`
+                title: "Account isn't the one who created this message!"
             } satisfies ProblemDetail);
         }
 
-        const data = modifyMessageSchema.safeParse(req.body);
+        const msgData = modifyMessageSchema.safeParse(req.body);
 
-        if (!data.success) {
-            return res.status(HttpStatusCodes.BadRequest).type("application/problem+json").send({
+        if (!msgData.success) {
+            return res.status(HttpStatusCodes.BadRequest).send({
                 status: HttpStatusCodes.BadRequest,
-                title: `Badly formatted message body!`
+                title: "Invalid request body!"
             } satisfies ProblemDetail);
         }
 
-        msg.content = data.data.content;
-        msg.lastModifiedAt = new Date();
-        return res.status(HttpStatusCodes.Ok).send();
+        m.content = msgData.data.content;
+        m.lastModifiedAt = new Date();
+        return res.status(HttpStatusCodes.Ok).send(await msgRepo.save(m));
     });
 
-    // deletes a room message with the specified Id
-    e.delete(`${route}/room/:roomId/messages/:msgId`, async (req, res) => {
+    e.delete(`${route}/:roomId/:msgId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });
 
         if (!room) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
+            return res.status(HttpStatusCodes.NotFound).send({
                 status: HttpStatusCodes.NotFound,
-                title: `Can't find a room with such Id!`
+                title: "Can't find a room with that room Id!"
             } satisfies ProblemDetail);
         }
 
         const a = req.headers.authorization;
-
-        if (typeof a !== "string") {
-            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
-                status: HttpStatusCodes.Unauthorized,
-                title: `Account hasn't joined this private room!`
-            } satisfies ProblemDetail);
-        }
-
-        const v = await serverService.tryAuthRawBearerSessionToken(a);
+        const v = await serverService.tryAuthRawBearerAccountSessionToken(a);
 
         if (!v.success) {
-            return res.status(HttpStatusCodes.Unauthorized).type("application/problem+json").send({
+            return res.status(HttpStatusCodes.Unauthorized).send({
                 status: HttpStatusCodes.Unauthorized,
-                title: `Error occurred while validating token: ${v.error}`
+                title: `Error while validating auth token: ${v.error}`
             } satisfies ProblemDetail);
         }
 
-        const { id, origin } = v.data;
-        const msgId = Number(req.params.msgId);
+        if (!await roomService.accountIsInRoom(v.data, roomId)) {
+            return res.status(HttpStatusCodes.Unauthorized).send({
+                status: HttpStatusCodes.Unauthorized,
+                title: "Account hasn't joined this room!"
+            } satisfies ProblemDetail);
+        }
 
-        const msg = await messageRepo.findOneBy({
-            id: msgId,
-            receiverId: roomId,
-            receiverOrigin: app.origin,
-            receiverType: "room"
-        });
+        const msgId = req.params.msgId;
+        const m = await msgRepo.findOneBy({ id: msgId, receiverId: roomId, receiverType: "room" });
 
-        if (!msg) {
-            return res.status(HttpStatusCodes.NotFound).type("application/problem+json").send({
+        if (!m) {
+            return res.status(HttpStatusCodes.NotFound).send({
                 status: HttpStatusCodes.NotFound,
-                title: `Can't find a message with such Id!`
-            } satisfies ProblemDetail);
+                title: "Can't find a message with such Id!"
+            } satisfies ProblemDetail); 
         }
 
-        if (msg.senderAccountId !== id || msg.senderAccountOrigin !== origin) {
-            return res.status(HttpStatusCodes.Forbidden).type("application/problem+json").send({
+        if (m.senderAccountId !== v.data.id || m.senderAccountOrigin !== v.data.origin) {
+            return res.status(HttpStatusCodes.Forbidden).send({
                 status: HttpStatusCodes.Forbidden,
-                title: `Can't delete the message of another user!`
+                title: "Account isn't the one who created this message!"
             } satisfies ProblemDetail);
         }
 
-        await messageRepo.remove(msg);
+        await msgRepo.remove(m);
         return res.sendStatus(HttpStatusCodes.NoContent);
     });
 
-    return app;
+    return Object.freeze({} as const);
+}
+
+// TODO: DM support...
+export async function initDmMessageService(appService: AppService, serverService: ServerService) {
+    const e = appService.expressInstance;
+    const route = "/messages/dms";
+    return Object.freeze({} as const);
+}
+
+export async function initDmServerMessageService(appService: AppService, serverService: ServerService) {
+    return Object.freeze({} as const);
 }
