@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PublicAccount } from "../shared/account";
 import CloseIcon from '@mui/icons-material/Close';
+
 import {
     Box,
     Button,
@@ -15,6 +16,7 @@ import {
     TextField,
     ThemeProvider
 } from "@mui/material";
+
 import * as React from "react";
 
 // https://react-typescript-cheatsheet.netlify.app/
@@ -44,7 +46,7 @@ export const theme = createTheme({
         },
 
         text: {
-            primary: "#ffffff"
+            primary: "#ffffff"  
         },
 
         info: {

@@ -6,7 +6,7 @@
         "esModuleInterop": true,
         "moduleResolution": "bundler",
         "moduleDetection": "force",
-        "allowImportingTsExtensions":true,
+        "allowImportingTsExtensions": true,
         "erasableSyntaxOnly": true,
         "rewriteRelativeImportExtensions": true,
         "forceConsistentCasingInFileNames": true,
@@ -24,6 +24,7 @@
         "strictFunctionTypes": true,
         "useUnknownInCatchVariables": true,
         "exactOptionalPropertyTypes": true,
+        "allowSyntheticDefaultImports": true,
         "lib": ["ESNext", "DOM"],
         "types": ["@webgpu/types", "vite/client"]
     },

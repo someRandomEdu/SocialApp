@@ -2,9 +2,8 @@
 @route = https://localhost:{{port}}
 @accounts = accounts
 @rooms = rooms
-@token = eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo1MTczIiwic3ViIjoiMTYiLCJpYXQiOjE3OTI2NDI3MjcsImp0aSI6IjlkNGIxZmM2LTRiZGMtNGIwMS04NTU0LTUyMzVkYTU3YmQ5OCJ9.e12PoWjcQDxBPM5AK4N3LM00K_lXOIVPMDrRmXvJmNWrPj_7uv22uQp1pPp6XEbSD-5C6PcV0Fj3AiIN_6IjAQ
-
-###
+@messages = messages
+@token = eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo1MTczIiwic3ViIjoiMTYiLCJpYXQiOjE3OTI2NTM0NTMsImp0aSI6ImQ2MTY2ODRiLTNlOTUtNDgyZC05YmJlLWE5M2JjYzgzNjZmYSJ9.0FhdOPHKo-JYhSrxICah40-malII1eOAH-zsMUsEwZdsSyDlWoA5pBDSFs4DPYjv4-gIk70fbBHCBubF9LfeAw
 POST {{route}}/{{accounts}}
 Content-Type: application/json
 
@@ -29,7 +28,7 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "description": "modified tao..."
+    "description": "qwq tao..."
 }
 
 ###
@@ -43,16 +42,21 @@ Authorization: Bearer {{token}}
 }
 
 ###
-POST {{route}}/{{rooms}}/1/members
-Authorization: Bearer {{token}}
-
-###
-POST {{route}}/{{rooms}}/1/messages
+POST {{route}}/messages/rooms/3
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    
+    "content": "Hello world~"
+}
+
+###
+PUT {{route}}/messages/rooms/3/47ceb9f0-47ac-4431-b0b6-7f5307e98600
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "content": "qwq..."
 }
 
 ###

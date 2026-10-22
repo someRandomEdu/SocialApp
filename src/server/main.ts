@@ -3,6 +3,7 @@ import { initAppService } from "./appService.ts";
 import { initAccountService } from "./accountService.ts";
 import { initServerService } from "./serverService.ts";
 import { initRoomService } from "./roomService.ts";
+import { initRoomMessageService } from "./messageService.ts";
 
 // TODO: Custom routes support?
 async function main(argv: readonly string[]) {
@@ -12,6 +13,7 @@ async function main(argv: readonly string[]) {
     const serverService = await initServerService(app);
     const accountService = await initAccountService(app, serverService);
     const roomService = await initRoomService(app, serverService);
+    const roomMessageService = await initRoomMessageService(app, serverService, roomService);
 
     app.expressInstance.get("/", async (_, res) => {
         res.status(HttpStatusCodes.Ok).send("Server's entry point!");

@@ -1,15 +1,21 @@
-import { createMessageSchema, modifyMessageSchema } from "../shared/message";
-import { HttpStatusCodes, ProblemDetail } from "../shared/net";
-import { AppService } from "./appService";
-import { DbMessage, dbMessageSchema } from "./db";
-import { RoomService } from "./roomService";
-import { ServerService } from "./serverService";
+import { UntypedId } from "../shared/id.ts";
+import { createMessageSchema, modifyMessageSchema } from "../shared/message.ts";
+import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
+import { AppService } from "./appService.ts";
+import { DbMessage, dbMessageSchema } from "./db.ts";
+import { RoomService } from "./roomService.ts";
+import { ServerService } from "./serverService.ts";
 
 export async function initRoomMessageService(appService: AppService, serverService: ServerService, roomService: RoomService) {
     const e = appService.expressInstance;
     const route = "/messages/rooms";
     const msgRepo = appService.dataSource.getRepository(dbMessageSchema);
 
+    function isSenderOf(id: UntypedId, msg: DbMessage) {
+        return msg.senderAccountId === id.id && msg.senderAccountOrigin === id.origin;
+    }
+
+    // gets messages of a room
     e.get(`${route}/:roomId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });
@@ -51,7 +57,26 @@ export async function initRoomMessageService(appService: AppService, serverServi
         return res.status(HttpStatusCodes.Ok).send(msgRepo.findBy({ receiverId: roomId, receiverType: "room" }));
     });
 
+    // creates a room message
     e.post(`${route}/:roomId`, async (req, res) => {
+        const roomId = Number(req.params.roomId);
+
+        if (!Number.isSafeInteger(roomId)) {
+            return res.status(HttpStatusCodes.NotFound).send({
+                status: HttpStatusCodes.NotFound,
+                title: "Room Id is not an integer!"
+            } satisfies ProblemDetail);
+        }
+        
+        const room = await roomService.findOneRoomBy({ id: roomId });
+
+        if (!room) {
+            return res.status(HttpStatusCodes.NotFound).send({
+                status: HttpStatusCodes.NotFound,
+                title: "Can't find a room with such Id!"
+            } satisfies ProblemDetail);
+        }
+
         const d = createMessageSchema.safeParse(req.body);
         
         if (!d.success) {
@@ -69,7 +94,7 @@ export async function initRoomMessageService(appService: AppService, serverServi
             } satisfies ProblemDetail);
         }
 
-        const { receiverId, receiverType, content } = d.data;
+        const { content } = d.data;
         const { id, origin } = v.data;
         const now = new Date();
 
@@ -77,8 +102,9 @@ export async function initRoomMessageService(appService: AppService, serverServi
             id: crypto.randomUUID(),
             senderAccountId: id,
             senderAccountOrigin: origin,
-            receiverId,
-            receiverType,
+            receiverId: room.id,
+            receiverOrigin: appService.origin,
+            receiverType: "room",
             content,
             createdAt: now,
             lastModifiedAt: now
@@ -87,6 +113,7 @@ export async function initRoomMessageService(appService: AppService, serverServi
         return res.status(HttpStatusCodes.Created).send(r);
     });
 
+    // get a specific message of a room
     e.get(`${route}/:roomId/:msgId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });
@@ -138,6 +165,7 @@ export async function initRoomMessageService(appService: AppService, serverServi
         return res.status(HttpStatusCodes.Created).send(m);
     });
 
+    // modify a specific message of a room
     e.put(`${route}/:roomId/:msgId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });
@@ -197,6 +225,7 @@ export async function initRoomMessageService(appService: AppService, serverServi
         return res.status(HttpStatusCodes.Ok).send(await msgRepo.save(m));
     });
 
+    // deletes a particular message of a room
     e.delete(`${route}/:roomId/:msgId`, async (req, res) => {
         const roomId = Number(req.params.roomId);
         const room = await roomService.findOneRoomBy({ id: roomId });

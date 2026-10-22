@@ -46,18 +46,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
             } satisfies ProblemDetail);
         }
 
-        const acc: PublicAccount = {
-            id: a.id,
-            name: a.name,
-            origin: app.origin,
-            description: a.description,
-            createdAt: a.createdAt,
-            lastModifiedAt: a.lastModifiedAt
-        };
-
-        return res.status(HttpStatusCodes.Created).send({
-            acc, jwt: await serverService.generateAccountSessionToken(a)
-        });
+        return res.status(HttpStatusCodes.Created).send(await serverService.generateAccountSessionToken(a));
     });
 
     // logout

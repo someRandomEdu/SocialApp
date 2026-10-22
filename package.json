@@ -20,6 +20,7 @@
         "server2": "node --enable-source-maps --use-system-ca dist/server/main.js 5174"
     },
     "dependencies": {
+        "@base-ui/react": "^1.9.0",
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
         "@fontsource/roboto": "^5.3.0",

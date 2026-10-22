@@ -13,8 +13,6 @@ export const messageSchema = z.object({
 export type Message = z.infer<typeof messageSchema>;
 
 export const createMessageSchema = z.object({
-    receiverId: z.int(),
-    receiverType: z.literal([EntityTypes.Account, EntityTypes.Room]),
     content: z.string(),
 });
 

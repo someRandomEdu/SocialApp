@@ -40,7 +40,7 @@ export class AppService {
 
 export async function initAppService(domain: string, port: number) {
     const expressInstance = express();
-    expressInstance.use(express.json());
+    expressInstance.use(express.json({ strict: false }));
     expressInstance.use(express.urlencoded());
     expressInstance.use(cors());
     expressInstance.use(cookieParser());

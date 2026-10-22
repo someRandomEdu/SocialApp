@@ -32,6 +32,7 @@ export type DbMessage = {
     readonly senderAccountId: number;
     readonly senderAccountOrigin: string;
     readonly receiverId: number;
+    readonly receiverOrigin: string;
     readonly receiverType: Exclude<EntityType, typeof EntityTypes.Message>;
     content: string;
     readonly createdAt: Date;
@@ -70,6 +71,7 @@ export const dbMessageSchema = new EntitySchema<DbMessage>({
         senderAccountId: { type: "int", primary: true },
         senderAccountOrigin: { type: String, primary: true },
         receiverId: { type: "int", nullable: false },
+        receiverOrigin: { type: String, nullable: false },
         receiverType: { type: String, nullable: false },
         content: { type: String, nullable: false },
         createdAt: { type: Date, nullable: false },
