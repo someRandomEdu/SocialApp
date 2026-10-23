@@ -1,7 +1,3 @@
-import { Account } from "./account";
-
-export interface Cred {}
-
 /**
  * A pair containing data along with a session token associated with it. 
  * Can be constructed by unauthorized means, so validation is needed.

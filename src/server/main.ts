@@ -9,7 +9,7 @@ import { initRoomMessageService } from "./messageService.ts";
 async function main(argv: readonly string[]) {
     console.log("Initializing the server!");
     const port = argv[2];
-    const app = await initAppService("localhost", Number(port ?? 5173));
+    const app = await initAppService("localhost", Number(port));
     const serverService = await initServerService(app);
     const accountService = await initAccountService(app, serverService);
     const roomService = await initRoomService(app, serverService);
@@ -24,6 +24,7 @@ async function main(argv: readonly string[]) {
             params: req.params.pathParams ?? [],
             query: req.query,
             header: req.headers,
+            cookies: req.cookies,
             body: req.body
         });
     });

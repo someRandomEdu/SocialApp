@@ -1,24 +1,16 @@
-@port = 5173
+@port = 3000
 @route = https://localhost:{{port}}
 @accounts = accounts
 @rooms = rooms
 @messages = messages
-@token = eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdDo1MTczIiwic3ViIjoiMTYiLCJpYXQiOjE3OTI2NTM0NTMsImp0aSI6ImQ2MTY2ODRiLTNlOTUtNDgyZC05YmJlLWE5M2JjYzgzNjZmYSJ9.0FhdOPHKo-JYhSrxICah40-malII1eOAH-zsMUsEwZdsSyDlWoA5pBDSFs4DPYjv4-gIk70fbBHCBubF9LfeAw
-POST {{route}}/{{accounts}}
-Content-Type: application/json
-
-{
-    "name": "CuteTao",
-    "password": "shh...",
-    "description": ">~<"
-}
+@token = eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdDozMDAwIiwic3ViIjoiMTciLCJpYXQiOjE3OTI3NTMxOTAsImp0aSI6IjliM2RiYTVmLWM1YzYtNGQ0My1hZDQxLTk5NGYwYWIwYzFjOSJ9.Wj5pO-qdT9l4k_-2_AZQ93qdKLUk17_IqnPNDczmXLzyWHO5LscOg1dShDc9sYu9x5c8f8yO8mEPCL6hSMoGAg
 
 ###
 POST {{route}}/{{accounts}}/sessions
 Content-Type: application/json
 
 {
-    "name": "CuteTao",
+    "name": "HuTao",
     "password": "shh..."
 }
 
@@ -28,7 +20,9 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "description": "qwq tao..."
+    "name": "MoreTao",
+    "description": "hu tao~",
+    "password": "shh..."
 }
 
 ###
@@ -37,34 +31,30 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "HuTaoMains",
+    "name": "ManyTaos",
     "isPublic": false
 }
 
 ###
-POST {{route}}/messages/rooms/3
+POST {{route}}/messages/rooms/4
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "content": "Hello world~"
+    "content": "abwa..."
 }
 
 ###
-PUT {{route}}/messages/rooms/3/47ceb9f0-47ac-4431-b0b6-7f5307e98600
+PUT {{route}}/messages/rooms/4/01a167c2-82ac-72db-9ef7-f07d14c9b3c2
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "content": "qwq..."
+    "content": "abwa... qwq..."
 }
 
 ###
-POST {{route}}
-Content-Type: application/json
-
-{
-    "origin": "https://localhost:5174"
-}
+GET {{route}}/{{rooms}}
+Authorization: Bearer {{token}}
 
 ###

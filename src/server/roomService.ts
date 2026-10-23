@@ -1,7 +1,6 @@
 ﻿import { UntypedId, untypedIdSchema } from "../shared/id.ts";
 import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
-import { createRoomSchema } from "../shared/room.ts";
-import { delProp } from "../shared/utils.ts";
+import { createRoomSchema, roomMemberSchema } from "../shared/room.ts";
 import { AppService } from "./appService.ts";
 import { dbMessageSchema, DbRoom, DbRoomMember, dbRoomMemberSchema, dbRoomSchema } from "./db.ts";
 import { ServerService } from "./serverService.ts";
@@ -40,10 +39,37 @@ export async function initRoomService(app: AppService, serverService: ServerServ
             return await roomRepo.findOneBy(room);
         },
 
+        async findRoomsBy(room: Partial<DbRoom>) {
+            return await roomRepo.findBy(room);  
+        },
+
         async roomMembersOf(roomId: number) {
             return await roomMemberRepo.findBy({ roomId });
         }
     } as const);
+
+    // gets rooms a user has joined in
+    e.get(`${route}`, async (req, res) => {
+        const v = await serverService.tryAuthRawBearerAccountSessionToken(
+            req.headers.authorization);
+
+        if (!v.success) {
+            return res.status(HttpStatusCodes.Unauthorized).send({
+                status: HttpStatusCodes.Unauthorized,
+                detail: `Error occurred while validating token: ${v.error}`
+            } satisfies ProblemDetail);
+        }
+        
+        const { id, origin } = v.data;
+
+        const r = await roomRepo.createQueryBuilder("room")
+            .innerJoin(dbRoomMemberSchema.options.name, "rm", "rm.roomId = room.id")
+            .where("rm.accountId = :id", { id })
+            .andWhere("rm.accountOrigin = :origin", { origin })
+            .getMany();
+
+        return res.status(HttpStatusCodes.Ok).send(r);
+    });
 
     // creates a room
     e.post(`${route}`, async (req, res) => {
@@ -80,7 +106,7 @@ export async function initRoomService(app: AppService, serverService: ServerServ
         } satisfies Partial<DbRoom>);
 
         await roomMemberRepo.save({ accountId: id, accountOrigin: origin, roomId: r.id } satisfies Partial<DbRoomMember>);
-        return res.status(HttpStatusCodes.Created).send(delProp(r, "id"));
+        return res.status(HttpStatusCodes.Created).send(r);
     });
 
     // deletes a room

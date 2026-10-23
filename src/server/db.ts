@@ -1,14 +1,11 @@
 import { DataSource, EntitySchema } from "typeorm";
-import { Account } from "../shared/account.ts";
 import { EntityType, EntityTypes } from "../shared/id.ts";
-import { JWTPayload } from "jose";
 import * as path from "node:path";
 
 export type DbAccount = {
     readonly id: number;
     passwordHash: string;
     name: string;
-    readonly origin: string;
     description: string;
     readonly createdAt: Date;
     lastModifiedAt: Date;

@@ -5,6 +5,7 @@ import { AppService } from "./appService.ts";
 import { DbMessage, dbMessageSchema } from "./db.ts";
 import { RoomService } from "./roomService.ts";
 import { ServerService } from "./serverService.ts";
+import * as uuid from "uuid";
 
 export async function initRoomMessageService(appService: AppService, serverService: ServerService, roomService: RoomService) {
     const e = appService.expressInstance;
@@ -90,16 +91,24 @@ export async function initRoomMessageService(appService: AppService, serverServi
 
         if (!v.success) {
             return res.status(HttpStatusCodes.Unauthorized).send({
-                status: HttpStatusCodes.Unauthorized
+                status: HttpStatusCodes.Unauthorized,
+                title: `Error occurred while validating auth token: ${v.error}`
             } satisfies ProblemDetail);
         }
 
-        const { content } = d.data;
+        if (!await roomService.accountIsInRoom(v.data, roomId)) {
+            return res.status(HttpStatusCodes.Forbidden).send({
+                status: HttpStatusCodes.Unauthorized,
+                title: "Account hasn't joined this server!"
+            } satisfies ProblemDetail); 
+        }
+
         const { id, origin } = v.data;
+        const { content } = d.data;
         const now = new Date();
 
         const r = await msgRepo.save({
-            id: crypto.randomUUID(),
+            id: uuid.v7(),
             senderAccountId: id,
             senderAccountOrigin: origin,
             receiverId: room.id,
@@ -147,7 +156,7 @@ export async function initRoomMessageService(appService: AppService, serverServi
             if (!await roomService.accountIsInRoom(v.data, roomId)) {
                 return res.status(HttpStatusCodes.Unauthorized).send({
                     status: HttpStatusCodes.Unauthorized,
-                    title: "Account hasn't joined this room!"
+                    title: "Account hasn't joined this private room!"
                 } satisfies ProblemDetail);
             }
         }

@@ -125,7 +125,7 @@ export function getProp<T extends object, K extends keyof T>(obj: T, key: K): Op
 
 export function setProp<T extends object, K extends PropertyKey, V>(obj: T, key: K, value: V): Omit<T, K> & { [_ in K]: V } {
     Reflect.defineProperty(obj, key, { value });
-    return obj as any;
+    return obj as Omit<T, K> & { [_ in K]: V };
 }
 
 export function delProp<T extends object, K extends keyof T>(obj: T, key: K): Omit<T, K> {

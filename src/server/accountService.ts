@@ -5,9 +5,9 @@ import { DbAccount, dbAccountSchema } from "./db.ts";
 import { ServerService } from "./serverService.ts";
 import * as bcrypt from "bcryptjs";
 
-export async function initAccountService(app: AppService, serverService: ServerService) {
-    const accRepo = app.dataSource.getRepository(dbAccountSchema);
-    const e = app.expressInstance;
+export async function initAccountService(appService: AppService, serverService: ServerService) {
+    const accRepo = appService.dataSource.getRepository(dbAccountSchema);
+    const e = appService.expressInstance;
     const route = "/accounts";
 
     async function hashPassword(password: string) {
@@ -46,7 +46,18 @@ export async function initAccountService(app: AppService, serverService: ServerS
             } satisfies ProblemDetail);
         }
 
-        return res.status(HttpStatusCodes.Created).send(await serverService.generateAccountSessionToken(a));
+        return res.status(HttpStatusCodes.Created).send({
+            account: {
+                id: a.id,
+                name: a.name,
+                origin: appService.origin,
+                description: a.description,
+                createdAt: a.createdAt,
+                lastModifiedAt: a.lastModifiedAt
+            } satisfies PublicAccount,
+            
+            token: await serverService.generateAccountSessionToken(a)
+        });
     });
 
     // logout
@@ -78,7 +89,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
         return res.status(HttpStatusCodes.Ok).send({
             id: a.id,
             name: a.name,
-            origin: app.origin,
+            origin: appService.origin,
             description: a.description,
             createdAt: a.createdAt,
             lastModifiedAt: a.lastModifiedAt,
@@ -100,7 +111,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
         return res.status(HttpStatusCodes.Ok).send({
             id: a.id,
             name: a.name,
-            origin: app.origin,
+            origin: appService.origin,
             description: a.description,
             createdAt: a.createdAt,
             lastModifiedAt: a.lastModifiedAt,
@@ -140,7 +151,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
         return res.status(HttpStatusCodes.Created).send({
             id: r.id,
             name: r.name,
-            origin: r.origin,
+            origin: appService.origin,
             description: r.description,
             createdAt: r.createdAt,
             lastModifiedAt: r.lastModifiedAt
@@ -204,7 +215,7 @@ export async function initAccountService(app: AppService, serverService: ServerS
         return res.status(HttpStatusCodes.Ok).send({
             id: r.id,
             name: r.name,
-            origin: r.origin,
+            origin: appService.origin,
             description: r.description,
             createdAt: r.createdAt,
             lastModifiedAt: r.lastModifiedAt

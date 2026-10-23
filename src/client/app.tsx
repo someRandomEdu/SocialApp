@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { PublicAccount } from "../shared/account";
 import CloseIcon from '@mui/icons-material/Close';
 
 import {
@@ -14,10 +13,16 @@ import {
     DialogTitle,
     IconButton,
     TextField,
-    ThemeProvider
+    ThemeProvider,
+    Typography
 } from "@mui/material";
 
 import * as React from "react";
+import { PublicAccount, publicAccountSchema } from "../shared/account";
+import { HttpStatusCodes } from "../shared/net";
+import SettingsIcon from '@mui/icons-material/Settings';
+import LoginIcon from '@mui/icons-material/Login';
+import { uuid } from "zod";
 
 // https://react-typescript-cheatsheet.netlify.app/
 // https://www.mui-treasury.com/
@@ -32,7 +37,7 @@ export const theme = createTheme({
         primary: {
             main: "#e91e62",
             light: "#f06291",
-            dark: "#c2185a"
+            dark: "#c2185a",
         },
 
         secondary: {
@@ -42,93 +47,155 @@ export const theme = createTheme({
         },
 
         background: {
-            default: "#000000"
+            default: "#000000",
+            paper: "#000000"
         },
 
         text: {
-            primary: "#ffffff"  
+            primary: "#ffffff" 
         },
 
         info: {
             main: "#2ea0f2"
-        },
+        }
     }
 });
 
 export function App() {
-    const [account, setAccount] = useState(undefined as PublicAccount | undefined);
+    const [loggedIn, setLoggedIn] = useState(false);
+    const [accView, setAccView] = useState(<></>);
+    const [token, setToken] = useState(undefined as string | undefined);
     const [dialogOpened, setDialogOpened] = useState(false);
 
-    return <ThemeProvider theme={theme}>
-        <CssBaseline>
-            <Box
-                sx={{
-                    position: "fixed",
-                    left: 0,
-                    bottom: 0,
-                    width: "60px    ",
-                    height: "100vh",
-                    color: "whitesmoke",
-                    backgroundColor: "#7f7f7f",
-                    border: "1px solid",
-                    borderColor: "divider",
-                }}
-            >
-                Hu Tao cute qwq
-            </Box>
+    return <>
+        <ThemeProvider theme={theme}>
+            <CssBaseline>
+                <Box
+                    sx={{
+                        position: "fixed",
+                        top: 0,
+                        bottom: 0,
+                        width: "60px",
+                        color: "whitesmoke",
+                        border: "2px solid",
+                        borderColor: "pink"
+                    }}
+                >
 
-            <Container style={{ display: "flex", flexDirection: "column" }}
-                sx={{ width: "auto", height: "auto" }}>
-
-                <Dialog open={dialogOpened} sx={{color: "#0099ff"}} style={{
-                    display: "flex", flexDirection: "column"}}
-                    fullWidth={true} maxWidth="sm" slotProps={{
-                        paper: {
-                            sx: {
-                                backgroundColor: "#7f7f7f"
-                            }
-                        }
-                    }}>
-
-                    <DialogTitle style={{ display: "flex" }}>
-                        Welcome back~
-                        <IconButton type="button" sx={{marginLeft: "auto"}} 
-                            onClick={(e) => { 
-                                setDialogOpened(false); 
-                            }}>
-
-                            <CloseIcon></CloseIcon>
-                        </IconButton>
-                    </DialogTitle>
-
-                    <DialogContent style={{display: "flex", flexDirection: "column"}}>
-                        <TextField label={"Username"}></TextField>
-                        <TextField label={"Password"} type="password"></TextField>
-                    </DialogContent>
-
-                    <DialogActions>
-                        <Button type="submit">Login</Button>
-                    </DialogActions>
-                </Dialog>
-                
-                <Button onClick={(e) => {
-                    setDialogOpened(true);
-                }}>Login</Button>
-
-            </Container>
-
-            <Container>
-                <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "flex-end",
-                    alignItems: "flex-start", marginTop: "auto", height: "90vh" }}>
-                    <Box>
-                        not logged in qwq
-                    </Box>
-
-                    <Box>
-                        meow...
-                    </Box>
+                    server list
                 </Box>
-            </Container>
-        </CssBaseline>
-    </ThemeProvider>;
+
+                <Box 
+                    sx={{ position: "absolute", bottom: 0, left: 0, display: "inline-flex", flexDirection: "column", 
+                    alignSelf: "flex-end", width: "fit-content", border: "2px solid", borderColor: "pink", 
+                    marginTop: "auto", backgroundColor: "black" }}
+                >
+                    
+                    {accView}
+
+                    <IconButton color="primary" onClick={
+                        (e) => { e.preventDefault(); setDialogOpened(true); }
+                    }>
+                        <Typography>Login</Typography>
+                        <LoginIcon sx={{ color: "white" }}></LoginIcon>
+                    </IconButton>
+                </Box>
+                
+                <Dialog id="loginForm" open={dialogOpened} slotProps={{paper: {sx: {border: "2px solid pink"}}}} onClose={(e) => { setDialogOpened(false); }}>
+                    <Box sx={{display: "inline-flex", flexDirection: "column"}}>
+                        <DialogTitle sx={{color: theme.palette.primary.main}}>Welcome back~</DialogTitle>
+
+                        <DialogContent sx={{display: "inline-flex", flexDirection: "column"}}>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+                                const name = formData.get("name") as string;
+                                const password = formData.get("password") as string;
+                                const origin = formData.get("origin") as string;
+                                console.log({name, password, origin});
+
+                                try {
+                                    const r = await fetch(`${origin}/accounts/sessions`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ name: name, password: password })
+                                    });
+
+                                    if (!r.ok) {
+                                        console.log(`Fetch error: ${r.status} ${await r.json()}`);
+                                        return;
+                                    }
+
+                                    console.log("Successfully requested data!");
+                                    const j = await r.json();
+                                    console.log(j);
+                                    const a = publicAccountSchema.safeParse(j.account);
+
+                                    if (!a.success) {
+                                        console.log(`Parse error: ${a.error}`);
+                                        return;
+                                    }
+
+                                    if (a.data.name !== name || a.data.origin !== origin) {
+                                        console.log(`Server didn't return a matching account data...`);
+                                        return;
+                                    }
+
+                                    console.log("Successfully logged in!");
+                                    setLoggedIn(true);
+
+                                    setAccView(<>
+                                        <Box sx={{display: "inline-flex", flexDirection: "row"}}>
+                                            <Typography>{name}@{origin}</Typography>
+                                            
+                                            <IconButton sx={{ color: "white" }} onClick={(e) => {
+                                                e.preventDefault();
+                                            }}>
+                                                <SettingsIcon></SettingsIcon>
+                                            </IconButton>
+                                        </Box>
+                                    </>);
+
+                                    setDialogOpened(false);
+                                } catch (e) {
+                                    console.error(e);
+
+                                    if (Error.isError(e)) {
+                                        console.error({ ...e });
+                                    }
+                                }
+                            }}>
+                                <Box sx={{display: "inline-flex", flexDirection: "column", gap: "4px"}}>
+                                    <TextField required={true} name="name" autoComplete="username" label="Username" type="text" variant="outlined"
+                                        sx={{"& .MuiOutlinedInput-notchedOutline": {
+                                            borderColor: "pink"
+                                        }}}
+                                        slotProps={{inputLabel: {sx: {color: theme.palette.primary.main}}}}>
+                                    </TextField>
+
+                                    <TextField required={true} name="password" autoComplete="current-password" label="Password" type="password" variant="outlined"
+                                        sx={{"& .MuiOutlinedInput-notchedOutline": {
+                                            borderColor: "pink"
+                                        }}}
+                                        slotProps={{inputLabel: {sx: {color: theme.palette.primary.main}}}}>
+                                    </TextField>
+
+                                    <TextField required={true} name="origin" autoComplete="url" label="Origin" type="url" variant="outlined"
+                                        sx={{"& .MuiOutlinedInput-notchedOutline": {
+                                            borderColor: "pink"
+                                        }}}
+                                        slotProps={{inputLabel: {sx: {color: theme.palette.primary.main}}}}>
+                                    </TextField>
+
+                                    <DialogActions>
+                                        <Button type="submit" variant="contained">Login</Button>
+                                    </DialogActions>
+                                </Box>
+                            </form>
+                        </DialogContent>
+                    </Box>
+                </Dialog>
+            </CssBaseline>
+        </ThemeProvider>
+    </>;
 }

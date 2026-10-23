@@ -19,24 +19,16 @@ export const accountSchema = z.object({
     lastModifiedAt: z.coerce.date(),
 });
 
-export type Account = {
-    readonly id: number;
-    password: string;
-    name: string;
-    readonly origin: string;
-    description: string;
-    readonly createdAt: Date;
-    lastModifiedAt: Date;
-};
+export const publicAccountSchema = z.object({
+    id: z.number(),
+    name: z.string(),
+    origin: z.string(),
+    description: z.string(),
+    createdAt: z.coerce.date(),
+    lastModifiedAt: z.coerce.date()
+});
 
-export type PublicAccount = {
-    readonly id: number;
-    name: string;
-    readonly origin: string;
-    description: string;
-    readonly createdAt: Date;
-    lastModifiedAt: Date;
-};
+export type PublicAccount = z.infer<typeof publicAccountSchema>;
 
 export const createAccountSchema = z.object({
     name: z.string(),
@@ -55,3 +47,10 @@ export type AccountCred = z.infer<typeof accountCredSchema>;
 export const modifyAccountSchema = createAccountSchema.exactPartial();
 
 export type ModifyAccount = z.infer<typeof modifyAccountSchema>;
+
+export const loginResultSchema = z.object({
+    account: publicAccountSchema,
+    token: z.string()
+});
+
+export type LoginResult = z.infer<typeof loginResultSchema>;
