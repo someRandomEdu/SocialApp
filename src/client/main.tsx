@@ -1,16 +1,20 @@
-import { StrictMode } from "react";
+import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App, theme } from "./app.tsx";
-import { ThemeProvider } from "@emotion/react";
+import { Main } from "./app.tsx";
+import { log } from "./utils.tsx";
 
-console.log("Initializing the client!");
+log.info(`React version: ${React.version}`);
+log.info("Initializing the client!");
+const r = document.getElementById("root");
 
-createRoot(document.getElementById("root")!).render(
-    <StrictMode>
-        <ThemeProvider theme={theme}>
-            <App></App>
-        </ThemeProvider>
-    </StrictMode>
-);
+if (!r) {
+    log.error("Can't find the root of the client's document!");
+} else {
+    createRoot(r).render(
+        <StrictMode>
+            <Main></Main>
+        </StrictMode>
+    );
 
-console.log("Finished initializing the client!");
+    log.info("Finished initializing the client!");
+}

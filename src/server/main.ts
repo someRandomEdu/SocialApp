@@ -1,41 +1,29 @@
-import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
 import { initAppService } from "./appService.ts";
 import { initAccountService } from "./accountService.ts";
 import { initServerService } from "./serverService.ts";
 import { initRoomService } from "./roomService.ts";
-import { initRoomMessageService } from "./messageService.ts";
+import * as ngrok from "@ngrok/ngrok";
+import * as dotenv from "dotenv";
+import { expressLogLayerErrorHandler } from "@loglayer/express";
 
-// TODO: Custom routes support?
 async function main(argv: readonly string[]) {
-    console.log("Initializing the server!");
     const port = argv[2];
-    const app = await initAppService("localhost", Number(port));
-    const serverService = await initServerService(app);
-    const accountService = await initAccountService(app, serverService);
-    const roomService = await initRoomService(app, serverService);
-    const roomMessageService = await initRoomMessageService(app, serverService, roomService);
+    const appService = await initAppService("localhost", Number(port));
+    appService.log.info(`Initializing the server!`);
+    const serverService = await initServerService(appService);
+    const accountService = await initAccountService(appService, serverService);
+    const roomService = await initRoomService(appService, serverService, accountService);
+    appService.expressInstance.use(expressLogLayerErrorHandler());
+    dotenv.config();
 
-    app.expressInstance.get("/", async (_, res) => {
-        res.status(HttpStatusCodes.Ok).send("Server's entry point!");
+    const listener = await ngrok.forward({
+        addr: appService.origin,
+        authtoken_from_env: true,
+        verify_upstream_tls: true
     });
 
-    app.expressInstance.post("/echo{/*pathParams}", async (req, res) => {
-        return res.status(HttpStatusCodes.Ok).send({
-            params: req.params.pathParams ?? [],
-            query: req.query,
-            header: req.headers,
-            cookies: req.cookies,
-            body: req.body
-        });
-    });
-
-    // app.expressInstance.delete("/shutdown", async (req, res) => {
-    //     app.server.close();
-    //     res.status(HttpStatusCodes.Ok).send("Shutting down the server...");
-    //     console.log("Shutting down the server...");
-    // });
-
-    console.log("Finished initializing the server!");
+    appService.log.info(`Server ${appService.origin} is hosted at ${listener.url()} by Ngrok!`);
+    appService.log.info("Finished initializing the server!");
 }
 
 await main(process.argv);

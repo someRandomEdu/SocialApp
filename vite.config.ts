@@ -1,18 +1,11 @@
 import { UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import basicSsl from "@vitejs/plugin-basic-ssl";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 export default {
-    plugins: [
-        react(), 
-
-        // basicSsl({
-        //     name: "socialApp",
-        //     domains: ["*.com"],
-        //     ttlDays: 30,
-        //     certDir: "./certs"
-        // })
-    ],
+    plugins: [react()],
+    base: "./",
 
     build: {
         outDir: "dist/client",
@@ -22,6 +15,11 @@ export default {
     server: {
         host: "localhost",
         port: 5173,
-        strictPort: false
-    },
+        strictPort: false,
+
+        https: {
+            cert: await readFile(path.join(import.meta.dirname, "certs", "localhost.pem")),
+            key: await readFile(path.join(import.meta.dirname, "certs", "localhost-key.pem"))
+        }
+    }
 } satisfies UserConfig;

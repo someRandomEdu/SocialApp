@@ -3,10 +3,11 @@
 @accounts = accounts
 @rooms = rooms
 @messages = messages
-@token = eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdDozMDAwIiwic3ViIjoiMTciLCJpYXQiOjE3OTI3NTMxOTAsImp0aSI6IjliM2RiYTVmLWM1YzYtNGQ0My1hZDQxLTk5NGYwYWIwYzFjOSJ9.Wj5pO-qdT9l4k_-2_AZQ93qdKLUk17_IqnPNDczmXLzyWHO5LscOg1dShDc9sYu9x5c8f8yO8mEPCL6hSMoGAg
+@token = eyJhbGciOiJFZDI1NTE5IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdDozMDAwIiwic3ViIjoiMTciLCJpYXQiOjE3OTQwNjIxMzksImp0aSI6IjhiMWE5NWNmLTg2MzYtNGUwMS1iZTI5LWU3NmNkZWFmY2Y0NSIsInN1YmplY3RUeXBlIjoiYWNjb3VudCJ9.BCGE4EN3etihimwwxUABofahnyW6xwsQvRtBl-w-6LY9zKdMKQT-QObx498qFmyagjfdjrZ2UvJpCXp8Ol1lCQ
+@accountId = 17
 
 ###
-POST {{route}}/{{accounts}}/sessions
+POST {{route}}/accounts/sessions
 Content-Type: application/json
 
 {
@@ -15,46 +16,49 @@ Content-Type: application/json
 }
 
 ###
-PUT {{route}}/{{accounts}}
+PUT {{route}}/accounts/{{accountId}}
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "MoreTao",
-    "description": "hu tao~",
-    "password": "shh..."
+    "currentPassword": "shh...",
+    "description": "hu tao is the best!"
 }
 
 ###
-POST {{route}}/{{rooms}}
+POST {{route}}/rooms
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "name": "ManyTaos",
+    "name": "Hu Tao Mains",
     "isPublic": false
 }
 
 ###
-POST {{route}}/messages/rooms/4
+GET {{route}}/rooms/1/messages
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+###
+POST {{route}}/rooms/1/messages
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-    "content": "abwa..."
+    "content": "hello world~"
 }
 
 ###
-PUT {{route}}/messages/rooms/4/01a167c2-82ac-72db-9ef7-f07d14c9b3c2
+GET {{route}}/rooms/public
+
+###
+POST {{route}}/server/echo/inner/path?query=q&param=p
 Content-Type: application/json
-Authorization: Bearer {{token}}
 
 {
-    "content": "abwa... qwq..."
+    "body": "data",
+    "a": 8
 }
-
-###
-GET {{route}}/{{rooms}}
-Authorization: Bearer {{token}}
 
 ###

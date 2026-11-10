@@ -151,3 +151,4 @@ vite.config.ts.timestamp-*
 *.pem
 *.crt
 certs
+audit.json

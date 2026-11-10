@@ -9,13 +9,8 @@
 
     "servers": [
         {
-            "url": "https://localhost:5173/api",
+            "url": "https://localhost:5173",
             "description": "Main Api used for client-server communication"
-        },
-
-        {
-            "url": "https://localhost:5173/server",
-            "description": "Api used for communication between servers"
         }
     ],
 
@@ -58,6 +53,14 @@
                     }
                 }
             }
+        },
+
+        "/accounts": {
+
+        },
+
+        "/rooms": {
+
         }
     }
 }

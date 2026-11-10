@@ -2,12 +2,12 @@
 import { err, ok, toUnixSeconds } from "../shared/utils.ts";
 import { AppService } from "./appService.ts";
 import * as z from "zod";
-import { serverApiRoute } from "./utils.ts";
-import { decodeJwt, JWTHeaderParameters, JWTPayload, jwtVerify, JWTVerifyOptions, SignJWT, SignOptions } from "jose";
-import { signJwt, tryVerifyJwt } from "../shared/jwt.ts";
-import { DbAccount } from "./db.ts";
+import { JWTHeaderParameters, JWTPayload, SignJWT, SignOptions } from "jose";
+import { DbAccount, DbMessage } from "./db.ts";
+import { EntityTypes } from "../shared/id.ts";
+import { Message } from "../shared/message.ts";
 
-const publicKeySchema = z.object({
+export const publicKeySchema = z.object({
     algorithm: z.string(),
     format: z.string(),
     encoding: z.string(),
@@ -16,10 +16,27 @@ const publicKeySchema = z.object({
 
 export type PublicKey = z.infer<typeof publicKeySchema>;
 
-export async function initServerService(app: AppService) {
-    const e = app.expressInstance;
-    const route = serverApiRoute;
-    // process.loadEnvFile("./secrets/.env");
+export const customJwtPayloadClaims = Object.freeze({
+    subjectType: "subjectType",
+    issuerAccountId: "issuerAccountId",
+    issuerAccountOrigin: "issuerAccountOrigin"
+} as const);
+
+export const accountTokenPayloadSchema = z.object({
+    iss: z.url(),
+    sub: z.string().transform(Number).pipe(z.int()),
+    iat: z.int().transform((seconds) => new Date(Math.trunc(seconds * 1000))).pipe(z.date()),
+    jti: z.string(),
+    exp: z.int().transform((seconds) => new Date(Math.trunc(seconds * 1000))).pipe(z.date()).exactOptional(),
+    [customJwtPayloadClaims.subjectType]: z.literal([EntityTypes.Account])
+});
+
+export type AccountTokenPayloadInput = z.input<typeof accountTokenPayloadSchema>;
+export type AccountTokenPayloadOutput = z.infer<typeof accountTokenPayloadSchema>;
+
+export async function initServerService(appService: AppService) {
+    const e = appService.expressInstance;
+    const route = "/server";
     const algorithm = Object.freeze({ name: "Ed25519" } as const);
     const alphabet = Object.freeze({ alphabet: "base64url" });
     const { publicKey, privateKey } = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
@@ -34,18 +51,39 @@ export async function initServerService(app: AppService) {
         } satisfies PublicKey);
     });
 
+    e.post(`${route}/echo{/*pathParams}`, async (req, res) => {
+        return res.status(HttpStatusCodes.Ok).send({
+            params: req.params.pathParams ?? [],
+            query: req.query,
+            header: req.headers,
+            cookies: req.cookies,
+            body: req.body
+        });
+    });
+
     const keys: Record<string, CryptoKey> = Object.create(null);
-    keys[app.origin] = publicKey;
+    keys[appService.origin] = publicKey;
     console.log("Initialized server service!");
 
-    return Object.freeze({
-        async signJwt(header: JWTHeaderParameters, payload?: JWTPayload, signOptions?: SignOptions) {
-            return await new SignJWT(payload).setProtectedHeader(header).sign(privateKey, signOptions);
-        },
+    async function signJwt(header: JWTHeaderParameters, payload?: JWTPayload, signOptions?: SignOptions) {
+        return await new SignJWT(payload).setProtectedHeader(header).sign(privateKey, signOptions);
+    }
 
-        async tryVerifyJwt(jwt: string | Uint8Array, verifyOptions?: JWTVerifyOptions) {
-            return await tryVerifyJwt(jwt, publicKey, verifyOptions);
-        },
+    const subjectType = customJwtPayloadClaims.subjectType;
+
+    const serverToken = await signJwt({ alg: "Ed25519", typ: "JWT" }, {
+        iss: appService.origin,
+        sub: appService.origin,
+        iat: toUnixSeconds(new Date()),
+        jti: crypto.randomUUID(),
+        [subjectType]: EntityTypes.Server
+    });
+
+    return Object.freeze({
+        publicKey,
+        serverToken,
+        customJwtPayloadClaims,
+        signJwt,
 
         async sign(data: BufferSource) {
             return await crypto.subtle.sign(algorithm, privateKey, data);
@@ -56,22 +94,7 @@ export async function initServerService(app: AppService) {
         },
 
         async importPublicKey(k: PublicKey) {
-            return await crypto.subtle.importKey("spki", Uint8Array.fromBase64(k.value, 
-                alphabet), algorithm, true, ["verify"]);
-        },
-
-        tryGetBearerToken(rawToken: unknown) {
-            if (typeof rawToken !== "string") {
-                return err("Token's not a string!");
-            }
-
-            const s = rawToken.split(" ", 2);
-
-            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
-                return err("Token doesn't follow the Bearer scheme!");
-            }
-
-            return ok(s[1]!);
+            return await crypto.subtle.importKey("spki", Uint8Array.fromBase64(k.value, alphabet), algorithm, true, ["verify"]);
         },
 
         /**
@@ -106,157 +129,96 @@ export async function initServerService(app: AppService) {
             }
         },
 
-        async generateAccountSessionToken(account: DbAccount, exp?: Date) {
-            const payload: JWTPayload = { 
-                iss: app.origin, 
-                sub: String(account.id), 
-                iat: toUnixSeconds(new Date()), 
-                jti: crypto.randomUUID()
+        async tryGetPublicKeyOfOrigin(origin: unknown) {
+            if (typeof origin !== "string") {
+                return err(`Origin is not a string!`)
+            }
+
+            const k = keys[origin];
+
+            if (k) {
+                return ok(k);
+            }
+
+            try {
+                const r = await fetch(`${origin}/server/public-key`);
+
+                if (r.status !== HttpStatusCodes.Ok) {
+                    return err(`Server ${origin} didn't return a successful request!`);
+                }
+
+                const d = publicKeySchema.safeParse(await r.json());
+
+                if (!d.success) {
+                    appService.log.error(`Error while parsing the public key of server with origin ${origin}: ${d.error}`);
+                    return err(`Server didn't return a suitable key format!`);
+                }
+
+                const parsedKey = d.data;
+                const importedKey = await this.importPublicKey(parsedKey);
+                keys[origin] = importedKey;
+                return ok(importedKey);
+            } catch (e) {
+                appService.log.error(`Error while getting the key of server ${origin}: ${e}`);
+                return err(String(e));
+            }
+        },
+
+        tryGetBearerToken(rawToken: unknown) {
+            if (typeof rawToken !== "string") {
+                return err("Token's not a string!");
+            }
+
+            const s = rawToken.split(" ", 2);
+
+            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
+                return err("Token doesn't follow the Bearer scheme!");
+            }
+
+            return ok(s[1]!);
+        },
+
+        async generateAccountSessionToken({ id }: DbAccount, exp?: Date) {
+            const payload: JWTPayload = {
+                iss: appService.origin,
+                sub: String(id),
+                iat: toUnixSeconds(new Date()),
+                jti: crypto.randomUUID(),
+                [subjectType]: EntityTypes.Account
             };
 
-            if (exp !== undefined) {
+            if (exp) {
                 payload.exp = toUnixSeconds(exp);
             }
 
-            return await signJwt({ alg: "Ed25519", typ: "JWT" }, payload, privateKey);
+            return await this.signJwt({ alg: "Ed25519", typ: "JWT" }, payload);
         },
 
         async generateServerSessionToken(exp?: Date) {
-            const payload: JWTPayload = { 
-                iss: app.origin, 
-                sub: app.origin, 
-                iat: toUnixSeconds(new Date()), 
-                jti: crypto.randomUUID()
+            const payload: JWTPayload = {
+                iss: appService.origin,
+                sub: appService.origin,
+                iat: toUnixSeconds(new Date()),
+                jti: crypto.randomUUID(),
+                subjectType: EntityTypes.Server
             };
 
             if (exp !== undefined) {
                 payload.exp = toUnixSeconds(exp);
             }
 
-            return await signJwt({ alg: "Ed25519", typ: "JWT" }, payload, privateKey);
+            return await this.signJwt({ alg: "Ed25519", typ: "JWT" }, payload);
         },
 
-        async tryAuthAccountSessionToken(token: string, options?: JWTVerifyOptions) {
-            try {
-                const unverifiedPayload = decodeJwt(token);
-                const origin = unverifiedPayload.iss;
-
-                if (typeof origin !== "string") {
-                    return err(`Token doesn't have an origin!`);
-                }
-
-                const publicKey = await this.publicKeyOfOrigin(origin);
-
-                if (!publicKey) {
-                    return err(`Can't get the public key of the server ${origin}, or the public key is in an invalid format!`);
-                }
-
-                const { payload } = await jwtVerify(token, publicKey, options);
-                const id = Number(payload.sub);
-
-                if (!Number.isInteger(id)) {
-                    return err(`Account Id is not valid!`);
-                }
-
-                return ok({ id, origin });
-            } catch (e) {
-                return err(String(e));
-            }
-        },
-
-        async tryAuthLocalAccountSessionToken(token: string, options?: JWTVerifyOptions) {
-            try {
-                const unverifiedPayload = decodeJwt(token);
-                const origin = unverifiedPayload.iss;
-
-                if (typeof origin !== "string") {
-                    return err(`Token doesn't have an origin!`);
-                }
-
-                const { payload } = await jwtVerify(token, publicKey, options);
-                const id = Number(payload.sub);
-
-                if (typeof id !== "number") {
-                    return err(`Account Id is not valid!`);
-                }
-
-                return ok({ id, origin });
-            } catch (e) {
-                return err(String(e));
-            }
-        },
-
-        async tryAuthRawBearerAccountSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
-            if (typeof rawToken !== "string") {
-                return err("Token not found!");
-            }
-
-            const s = rawToken.split(" ", 2);
-
-            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
-                return err("Token doesn't follow the Bearer scheme!");
-            }
-
-            const token = s[1]!;
-            return await this.tryAuthAccountSessionToken(token, options);
-        },
-
-        async tryAuthRawBearerLocalAccountSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
-            if (typeof rawToken !== "string") {
-                return err("Token not found!");
-            }
-
-            const s = rawToken.split(" ", 2);
-
-            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
-                return err("Token doesn't follow the Bearer scheme!");
-            }
-
-            const token = s[1]!;
-            return await this.tryAuthLocalAccountSessionToken(token, options);
-        },
-
-        async tryAuthServerSessionToken(token: string, options?: JWTVerifyOptions) {
-            try {
-                const unverifiedPayload = decodeJwt(token);
-                const origin = unverifiedPayload.iss;
-
-                if (typeof origin !== "string") {
-                    return err("Token doesn't have an origin!");
-                }
-
-                const publicKey = await this.publicKeyOfOrigin(origin);
-
-                if (!publicKey) {
-                    return err(`Can't get the public key of the server ${origin}, or the public key is in an invalid format!`);
-                }
-
-                const { payload } = await jwtVerify(token, publicKey, options);
-                const sub = payload.sub;
-
-                if (sub !== origin) {
-                    return err("Jwt sub property doesn't point to the same issued server!")
-                }
-
-                return ok(origin);
-            } catch (e) {
-                return err(String(e));
-            }
-        },
-
-        async tryAuthRawBearerServerSessionToken(rawToken: unknown, options?: JWTVerifyOptions) {
-            if (typeof rawToken !== "string") {
-                return err("Token not found!");
-            }
-
-            const s = rawToken.split(" ", 2);
-
-            if (s.length !== 2 || s[0]?.toLowerCase() !== "bearer") {
-                return err("Token doesn't follow the Bearer scheme!");
-            }
-
-            const token = s[1]!;
-            return this.tryAuthServerSessionToken(token, options);
+        toMessage(m: DbMessage): Message {
+            return {
+                id: m.id,
+                senderAccount: { id: m.senderAccountId, origin: m.senderAccountOrigin },
+                receiver: { id: m.receiverId, origin: appService.origin, type: m.receiverType },
+                content: m.content,
+                createdAt: m.createdAt,
+                lastModifiedAt: m.lastModifiedAt
+            };
         }
     } as const);
 }

@@ -1,5 +1,5 @@
 import { DataSource, EntitySchema } from "typeorm";
-import { EntityType, EntityTypes } from "../shared/id.ts";
+import { EntityTypes } from "../shared/id.ts";
 import * as path from "node:path";
 
 export type DbAccount = {
@@ -29,12 +29,17 @@ export type DbMessage = {
     readonly senderAccountId: number;
     readonly senderAccountOrigin: string;
     readonly receiverId: number;
-    readonly receiverOrigin: string;
-    readonly receiverType: Exclude<EntityType, typeof EntityTypes.Message>;
-    content: string;
+    readonly receiverType: typeof EntityTypes.Room | typeof EntityTypes.Account;
     readonly createdAt: Date;
     lastModifiedAt: Date;
-};
+    content: string;
+} & ({
+    readonly replyToMessageIsFromDmPartner: false;
+    readonly replyToMessageId?: null;
+} | {
+    readonly replyToMessageIsFromDmPartner: true;
+    readonly replyToMessageId: string;
+});
 
 export type DbRoom = {
     readonly id: number;
@@ -42,6 +47,7 @@ export type DbRoom = {
     isPublic: boolean;
     description: string;
     readonly createdAt: Date;
+    lastModifiedAt: Date;
     ownerAccountId: number;
     ownerAccountOrigin: string;
 };
@@ -68,11 +74,12 @@ export const dbMessageSchema = new EntitySchema<DbMessage>({
         senderAccountId: { type: "int", primary: true },
         senderAccountOrigin: { type: String, primary: true },
         receiverId: { type: "int", nullable: false },
-        receiverOrigin: { type: String, nullable: false },
         receiverType: { type: String, nullable: false },
-        content: { type: String, nullable: false },
         createdAt: { type: Date, nullable: false },
         lastModifiedAt: { type: Date, nullable: false },
+        replyToMessageId: { type: String, nullable: true, default: null },
+        replyToMessageIsFromDmPartner: { type: Boolean, nullable: false, default: false },
+        content: { type: String, nullable: false }
     }
 });
 
@@ -85,6 +92,7 @@ export const dbRoomSchema = new EntitySchema<DbRoom>({
         isPublic: { type: Boolean, nullable: false, default: false },
         description: { type: String, nullable: false, default: "" },
         createdAt: { type: Date, nullable: false },
+        lastModifiedAt: { type: Date, nullable: false },
         ownerAccountId: { type: "int", nullable: false },
         ownerAccountOrigin: { type: String, nullable: false }
     },
@@ -94,7 +102,7 @@ export const dbRoomMemberSchema = new EntitySchema<DbRoomMember>({
     name: "roomMembers",
 
     columns: {
-        id: { type: "int", primary: true },
+        id: { type: "int", primary: true, generated: true },
         
         roomId: { type: "int", nullable: false, foreignKey: { 
             target: "rooms", 
@@ -133,6 +141,7 @@ export async function createDataSource(port: number) {
         type: "better-sqlite3",
         database: path.join(import.meta.dirname, "..", "..", "data", `serverData${port}.db`),
         entities: [dbAccountSchema, dbMessageSchema, dbRoomSchema, dbRoomBannedMemberSchema, dbRoomMemberSchema],
-        synchronize: true
+        synchronize: true,
+        dropSchema: false
     }).initialize();
 }

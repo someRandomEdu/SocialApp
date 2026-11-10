@@ -151,81 +151,6 @@ export const HttpStatusMessages = Object.freeze({
 export type HttpStatusMessage = keyof typeof HttpStatusCodes;
 export type HttpStatusCode = typeof HttpStatusCodes[HttpStatusMessage];
 
-export type HttpInformationalStatusCode = 
-    | typeof HttpStatusCodes.Continue
-    | typeof HttpStatusCodes.SwitchingProtocols
-    | typeof HttpStatusCodes.Processing
-    | typeof HttpStatusCodes.EarlyHints;
-
-export type HttpSuccessStatusCode = 
-    | typeof HttpStatusCodes.Ok
-    | typeof HttpStatusCodes.Created
-    | typeof HttpStatusCodes.Accepted
-    | typeof HttpStatusCodes.NonAuthoritativeInformation
-    | typeof HttpStatusCodes.NoContent
-    | typeof HttpStatusCodes.ResetContent
-    | typeof HttpStatusCodes.PartialContent
-    | typeof HttpStatusCodes.MultiStatus
-    | typeof HttpStatusCodes.AlreadyReported
-    | typeof HttpStatusCodes.IMUsed;
-
-export type HttpRedirectionStatusCode =
-    | typeof HttpStatusCodes.MultipleChoices
-    | typeof HttpStatusCodes.MovedPermanently
-    | typeof HttpStatusCodes.Found
-    | typeof HttpStatusCodes.SeeOther
-    | typeof HttpStatusCodes.NotModified
-    | typeof HttpStatusCodes.TemporaryRedirect
-    | typeof HttpStatusCodes.PermanentRedirect;
-
-export type HttpClientErrorStatusCode = 
-    | typeof HttpStatusCodes.BadRequest
-    | typeof HttpStatusCodes.Unauthorized
-    | typeof HttpStatusCodes.PaymentRequired
-    | typeof HttpStatusCodes.Forbidden
-    | typeof HttpStatusCodes.NotFound
-    | typeof HttpStatusCodes.MethodNotAccepted
-    | typeof HttpStatusCodes.NotAcceptable
-    | typeof HttpStatusCodes.ProxyAuthenticationRequired
-    | typeof HttpStatusCodes.RequestTimeout
-    | typeof HttpStatusCodes.Conflict
-    | typeof HttpStatusCodes.Gone
-    | typeof HttpStatusCodes.LengthRequired
-    | typeof HttpStatusCodes.PreconditionFailed
-    | typeof HttpStatusCodes.ContentTooLarge
-    | typeof HttpStatusCodes.UriTooLong
-    | typeof HttpStatusCodes.UnsupportedMediaType
-    | typeof HttpStatusCodes.RangeNotSatisfiable
-    | typeof HttpStatusCodes.ExpectationFailed
-    | typeof HttpStatusCodes.ImATeapot
-    | typeof HttpStatusCodes.MisdirectedRequest
-    | typeof HttpStatusCodes.UnprocessableContent
-    | typeof HttpStatusCodes.Locked
-    | typeof HttpStatusCodes.FailedDependency
-    | typeof HttpStatusCodes.TooEarly
-    | typeof HttpStatusCodes.UpgradeRequired
-    | typeof HttpStatusCodes.PreconditionFailed
-    | typeof HttpStatusCodes.TooManyRequests
-    | typeof HttpStatusCodes.RequestHeaderFieldsTooLarge
-    | typeof HttpStatusCodes.UnavailableForLegalReasons;
-
-export type HttpServerErrorStatusCode = 
-    | typeof HttpStatusCodes.InternalServerError
-    | typeof HttpStatusCodes.NotImplemented
-    | typeof HttpStatusCodes.BadGateway
-    | typeof HttpStatusCodes.ServiceUnavailable
-    | typeof HttpStatusCodes.GatewayTimeout
-    | typeof HttpStatusCodes.HttpVersionNotSupported
-    | typeof HttpStatusCodes.VariantAlsoNegotiates
-    | typeof HttpStatusCodes.InsufficientStorage
-    | typeof HttpStatusCodes.LoopDetected
-    | typeof HttpStatusCodes.NotExtended
-    | typeof HttpStatusCodes.NetworkAuthenticationRequired;
-
-// https://http.dev/methods
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "QUERY" 
-    | "HEAD" | "OPTIONS" | "TRACE" | "CONNECT" | "PRI";
-
 export class ApiResponse<E, S extends HttpStatusCode = HttpStatusCode> {
     public entity: E;
     public status: S;
@@ -248,15 +173,7 @@ export const problemDetailSchema = z.object({
     instance: z.url().optional(),
 }).and(z.record(z.string(), z.unknown()));
 
-/** Describes the shape of an error object conforming to https://www.rfc-editor.org/info/rfc9457/. */
+/** Describes the shape of an error object conforming to https://www.rfc-editor.org/info/rfc9457/ */
 export type ProblemDetail = z.infer<typeof problemDetailSchema>;
 
-type Base64BaseChar = 
-    | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" 
-    | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
-    | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
-    | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z"
-    | "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
-
-export type Base64Char = Base64BaseChar | "+" | "/";
-export type Base64UrlChar = Base64BaseChar | "-" | "_";
+export function problemDetail<T extends ProblemDetail>(r: T) { return r; }

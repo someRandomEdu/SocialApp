@@ -4,13 +4,22 @@ import * as z from "zod";
 export const messageSchema = z.object({
     id: z.string(),
     senderAccount: untypedIdSchema,
-    receiver: accountIdSchema.or(roomIdSchema),
+    receiver: roomIdSchema.or(accountIdSchema),
+
+    replyToMessage: z.object({
+        id: z.string(),
+        isFromDmPartner: z.boolean().default(false)
+    }).optional(),
+
     content: z.string(),
     createdAt: z.coerce.date(),
     lastModifiedAt: z.coerce.date()
 });
 
+export const messageArraySchema = messageSchema.array();
+
 export type Message = z.infer<typeof messageSchema>;
+export type MessageArray = z.infer<typeof messageArraySchema>;
 
 export const createMessageSchema = z.object({
     content: z.string(),
