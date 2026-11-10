@@ -186,12 +186,39 @@ export async function initAccountService(appService: AppService, serverService: 
 
         const { id, origin } = v.data;
 
-        // checks if the authenticated token represents an account local to this server
-        if (origin === appService.origin) {
-            socket.join(socketRoomNames.account(id));
-        }
+        // // checks if the authenticated token represents an account local to this server
+        // if (origin === appService.origin) {
+        //     socket.join(socketRoomNames.account(id));
+        // }
 
-        socket.emit("onConnected" satisfies keyof ServerToClientEvents);
+        socket.on("onRequestListenAccount", async (rawId, callback) => {
+            const accountId = Number(rawId);
+
+            if (!isInteger(accountId)) {
+                callback(err("Invalid account Id!"));
+                return;
+            }
+
+            const a = await accRepo.findOneBy({ id: accountId });
+
+            if (!a) {
+                callback(err("Invalid account Id!"))
+                return;
+            }
+
+            callback(ok(toAccount(a)));
+            socket.join(socketRoomNames.account(accountId));
+        });
+
+        socket.on("onRequestLeaveAccount", async (rawId) => {
+            const accountId = Number(rawId);
+
+            if (!isInteger(accountId)) {
+                return;
+            }
+
+            socket.leave(socketRoomNames.account(accountId));
+        });
     });
 
     // login
@@ -290,14 +317,14 @@ export async function initAccountService(appService: AppService, serverService: 
             } satisfies ProblemDetail);
         }
 
-        const currentDate = new Date();
+        const now = new Date();
 
-        const r: DbAccount = await accRepo.save({
+        const r = await accRepo.save({
             name,
             passwordHash: await hashPassword(password),
             description,
-            createdAt: currentDate,
-            lastModifiedAt: currentDate
+            createdAt: now,
+            lastModifiedAt: now
         } satisfies Partial<DbAccount>);
 
         return res.status(HttpStatusCodes.Created).send(toAccount(r));

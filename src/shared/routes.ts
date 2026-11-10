@@ -1,10 +1,10 @@
 // https://web.dev/articles/url-parts
 
-import { Account } from "./account";
-import { UntypedId } from "./id";
-import { Message } from "./message";
-import { Room } from "./room";
-import { Fn, Result } from "./utils";
+import { Account } from "./account.ts";
+import { UntypedId } from "./id.ts";
+import { Message } from "./message.ts";
+import { Room } from "./room.ts";
+import { Fn, Result } from "./utils.ts";
 
 export const HOST = `localhost`;
 export const PORT = 3000;
@@ -21,12 +21,13 @@ export const socketRoomNames = Object.freeze({
 // https://socket.io/docs/v4/emit-cheatsheet
 
 export interface ClientToServerEvents {
-    onRequestJoinRoom(roomId: number, callback: Fn<[Result<Room, string>]>): void;
-    onRequestLeaveRoom(roomId: number, callback: Fn<[Result<undefined, string>]>): void;
+    onRequestListenAccount(id: number, callback: Fn<[Result<Account, string>]>): void;
+    onRequestLeaveAccount(id: number): void;
+    onRequestListenRoom(id: number, callback: Fn<[Result<Room, string>]>): void;
+    onRequestLeaveRoom(id: number): void;
 }
 
 export interface ServerToClientEvents {
-    onConnected(): void;
     onAccountModified(oldData: Account, newData: Account): void;
     onMessageCreated(data: Message): void;
     onMessageModified(oldData: Message, newData: Message): void;

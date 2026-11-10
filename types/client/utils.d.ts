@@ -3,61 +3,25 @@ import { Nullable, Result } from "../shared/utils";
 import { AccountCredentials, LoginData } from "../shared/account";
 import { Room, RoomArray } from "../shared/room";
 import { UntypedId } from "../shared/id.ts";
+import { ClientToServerEvents, ServerToClientEvents } from "../shared/routes.ts";
 import { Socket as ClientSocket } from "socket.io-client";
 import { LogLayer } from "loglayer";
+export declare const socket: ClientSocket<ServerToClientEvents, ClientToServerEvents>;
 export declare const theme: import("@mui/material").Theme;
+export declare const homeOrigin = "https://localhost:3000";
+export declare const log: LogLayer;
 export declare const LoginDataContext: React.Context<{
     loginData: Nullable<LoginData>;
     setLoginData(value: Nullable<LoginData>): void;
 }>;
-export declare const RoomListContext: React.Context<{
-    roomList: RoomArray;
-    setRoomList(value: RoomArray): void;
+export declare const RoomArrayContext: React.Context<{
+    roomArray: RoomArray;
+    setRoomArray(value: RoomArray): void;
 }>;
-export declare const homeOrigin = "https://localhost:3000";
-export declare const log: LogLayer;
 export declare const ServerOriginsContext: React.Context<string[]>;
 export declare const CurrentRoomContext: React.Context<{
     currentRoom: Nullable<Room>;
     setCurrentRoom(value: Nullable<Room>): void;
-}>;
-export declare const RoomListPromiseContext: React.Context<Nullable<Promise<{
-    id: number;
-    name: string;
-    isPublic: boolean;
-    createdAt: Date;
-    description: string;
-    ownerAccount: {
-        id: number;
-        origin: string;
-    };
-}[]>>>;
-export declare const ServerMessageableContext: React.Context<{
-    id: string;
-    senderAccount: {
-        id: number;
-        origin: string;
-    };
-    receiver: {
-        id: number;
-        origin: string;
-        type: "account";
-    } | {
-        id: number;
-        origin: string;
-        type: "room";
-    };
-    replyToMessage?: {
-        id: string;
-        isFromDmPartner: boolean;
-    } | undefined;
-    content: string;
-    createdAt: Date;
-    lastModifiedAt: Date;
-}[]>;
-export declare const ChatPanelContext: React.Context<{
-    chatPanel: React.JSX.Element;
-    setChatPanel(value: React.JSX.Element): void;
 }>;
 export declare function getRoomsOf(token: string, origin: string): Promise<{
     id: number;
@@ -70,23 +34,15 @@ export declare function getRoomsOf(token: string, origin: string): Promise<{
         origin: string;
     };
 }[]>;
-export declare const AuthContext: React.Context<{
-    token: Nullable<string>;
-    login({ name, password }: AccountCredentials): Promise<Result<{
-        account: {
-            id: number;
-            name: string;
-            origin: string;
-            description: string;
-            createdAt: Date;
-            lastModifiedAt: Date;
-        };
-        token: string;
-    }, string>>;
+export declare const AuthOpsContext: React.Context<{
+    login({ name, password }: AccountCredentials): Promise<Result<LoginData, string>>;
     logout(): boolean;
 }>;
+export declare const ErrorContext: React.Context<{
+    error: Nullable<string>;
+    setError(value: Nullable<string>): void;
+}>;
 export declare const TokenContext: React.Context<Nullable<string>>;
-export declare const SocketContext: React.Context<Nullable<ClientSocket<import("@socket.io/component-emitter").DefaultEventsMap, import("@socket.io/component-emitter").DefaultEventsMap>>>;
 export declare const AccountContext: React.Context<Nullable<{
     id: number;
     name: string;
@@ -95,15 +51,42 @@ export declare const AccountContext: React.Context<Nullable<{
     createdAt: Date;
     lastModifiedAt: Date;
 }>>;
-export declare const ErrorContext: React.Context<{
-    error: Nullable<string>;
-    setError(value: Nullable<string>): void;
-}>;
+export declare const RoomContext: React.Context<Nullable<{
+    id: number;
+    name: string;
+    isPublic: boolean;
+    createdAt: Date;
+    description: string;
+    ownerAccount: {
+        id: number;
+        origin: string;
+    };
+}>>;
+export declare const MessagesContext: React.Context<Nullable<{
+    id: string;
+    senderAccount: {
+        id: number;
+        origin: string;
+    };
+    receiver: {
+        id: number;
+        origin: string;
+        type: "room";
+    } | {
+        id: number;
+        origin: string;
+        type: "account";
+    };
+    replyToMessage?: {
+        id: string;
+        isFromDmPartner: boolean;
+    } | undefined;
+    content: string;
+    createdAt: Date;
+    lastModifiedAt: Date;
+}[]>>;
 export declare function AuthProvider({ children }: {
-    children: React.JSX.Element;
-}): React.JSX.Element;
-export declare function SocketProvider({ children }: {
-    children: React.JSX.Element;
+    children: React.ReactNode;
 }): React.JSX.Element;
 export declare function getAccNameCache({ id, origin }: UntypedId): string | undefined;
 export declare function isInAccNameCache({ id, origin }: UntypedId): boolean;

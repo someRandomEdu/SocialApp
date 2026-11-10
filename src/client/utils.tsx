@@ -105,7 +105,7 @@ export const AuthOpsContext = createContext({
         throw new NotImplementedError();
     },
 
-    logout(): boolean { return false; }
+    logout(): boolean { throw new NotImplementedError(); }
 });
 
 export const ErrorContext = createContext({

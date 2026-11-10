@@ -127,12 +127,6 @@ export declare const HttpStatusMessages: Readonly<{
 }>;
 export type HttpStatusMessage = keyof typeof HttpStatusCodes;
 export type HttpStatusCode = typeof HttpStatusCodes[HttpStatusMessage];
-export type HttpInformationalStatusCode = typeof HttpStatusCodes.Continue | typeof HttpStatusCodes.SwitchingProtocols | typeof HttpStatusCodes.Processing | typeof HttpStatusCodes.EarlyHints;
-export type HttpSuccessStatusCode = typeof HttpStatusCodes.Ok | typeof HttpStatusCodes.Created | typeof HttpStatusCodes.Accepted | typeof HttpStatusCodes.NonAuthoritativeInformation | typeof HttpStatusCodes.NoContent | typeof HttpStatusCodes.ResetContent | typeof HttpStatusCodes.PartialContent | typeof HttpStatusCodes.MultiStatus | typeof HttpStatusCodes.AlreadyReported | typeof HttpStatusCodes.IMUsed;
-export type HttpRedirectionStatusCode = typeof HttpStatusCodes.MultipleChoices | typeof HttpStatusCodes.MovedPermanently | typeof HttpStatusCodes.Found | typeof HttpStatusCodes.SeeOther | typeof HttpStatusCodes.NotModified | typeof HttpStatusCodes.TemporaryRedirect | typeof HttpStatusCodes.PermanentRedirect;
-export type HttpClientErrorStatusCode = typeof HttpStatusCodes.BadRequest | typeof HttpStatusCodes.Unauthorized | typeof HttpStatusCodes.PaymentRequired | typeof HttpStatusCodes.Forbidden | typeof HttpStatusCodes.NotFound | typeof HttpStatusCodes.MethodNotAccepted | typeof HttpStatusCodes.NotAcceptable | typeof HttpStatusCodes.ProxyAuthenticationRequired | typeof HttpStatusCodes.RequestTimeout | typeof HttpStatusCodes.Conflict | typeof HttpStatusCodes.Gone | typeof HttpStatusCodes.LengthRequired | typeof HttpStatusCodes.PreconditionFailed | typeof HttpStatusCodes.ContentTooLarge | typeof HttpStatusCodes.UriTooLong | typeof HttpStatusCodes.UnsupportedMediaType | typeof HttpStatusCodes.RangeNotSatisfiable | typeof HttpStatusCodes.ExpectationFailed | typeof HttpStatusCodes.ImATeapot | typeof HttpStatusCodes.MisdirectedRequest | typeof HttpStatusCodes.UnprocessableContent | typeof HttpStatusCodes.Locked | typeof HttpStatusCodes.FailedDependency | typeof HttpStatusCodes.TooEarly | typeof HttpStatusCodes.UpgradeRequired | typeof HttpStatusCodes.PreconditionFailed | typeof HttpStatusCodes.TooManyRequests | typeof HttpStatusCodes.RequestHeaderFieldsTooLarge | typeof HttpStatusCodes.UnavailableForLegalReasons;
-export type HttpServerErrorStatusCode = typeof HttpStatusCodes.InternalServerError | typeof HttpStatusCodes.NotImplemented | typeof HttpStatusCodes.BadGateway | typeof HttpStatusCodes.ServiceUnavailable | typeof HttpStatusCodes.GatewayTimeout | typeof HttpStatusCodes.HttpVersionNotSupported | typeof HttpStatusCodes.VariantAlsoNegotiates | typeof HttpStatusCodes.InsufficientStorage | typeof HttpStatusCodes.LoopDetected | typeof HttpStatusCodes.NotExtended | typeof HttpStatusCodes.NetworkAuthenticationRequired;
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "QUERY" | "HEAD" | "OPTIONS" | "TRACE" | "CONNECT" | "PRI";
 export declare class ApiResponse<E, S extends HttpStatusCode = HttpStatusCode> {
     entity: E;
     status: S;
@@ -146,7 +140,7 @@ export declare const problemDetailSchema: z.ZodIntersection<z.ZodObject<{
     detail: z.ZodOptional<z.ZodString>;
     instance: z.ZodOptional<z.ZodURL>;
 }, z.core.$strip>, z.ZodRecord<z.ZodString, z.ZodUnknown>>;
-/** Describes the shape of an error object conforming to https://www.rfc-editor.org/info/rfc9457/. */
+/** Describes the shape of an error object conforming to https://www.rfc-editor.org/info/rfc9457/ */
 export type ProblemDetail = z.infer<typeof problemDetailSchema>;
 export declare function problemDetail<T extends ProblemDetail>(r: T): T;
 //# sourceMappingURL=net.d.ts.map

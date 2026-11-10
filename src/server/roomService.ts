@@ -154,7 +154,7 @@ export async function initRoomService(appService: AppService, serverService: Ser
 
         const { id, origin } = v.data;
 
-        socket.on("onRequestJoinRoom" satisfies keyof ClientToServerEvents, 
+        socket.on("onRequestListenRoom" satisfies keyof ClientToServerEvents, 
             async (rawRoomId, callback) => {
             const roomId = Number(rawRoomId);
 

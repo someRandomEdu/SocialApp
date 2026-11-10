@@ -3,13 +3,14 @@ import { Server as HttpServer } from "node:http";
 import { DataSource } from "typeorm";
 import { Server } from "socket.io";
 import { LogLayer } from "loglayer";
+import { ClientToServerEvents, ServerToClientEvents } from "../shared/routes.ts";
 export declare const rootDirName: string;
 export declare class AppService {
     readonly url: URL;
     readonly expressInstance: Express;
     readonly httpServer: HttpServer;
     readonly dataSource: DataSource;
-    readonly io: Server;
+    readonly io: Server<ClientToServerEvents, ServerToClientEvents>;
     readonly log: LogLayer;
     constructor(url: URL, expressInstance: Express, httpServer: HttpServer, dataSource: DataSource, log: LogLayer);
     get scheme(): string;
