@@ -3,7 +3,7 @@ import cors from "cors";
 import { Server as HttpServer } from "node:http";
 import { DataSource } from "typeorm";
 import cookieParser from "cookie-parser";
-import { createDataSource } from "./db.ts";
+import { initDataSource } from "./db.ts";
 import * as https from "node:https";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -59,7 +59,7 @@ export async function initAppService(domain: string, port: number) {
         errorSerializer: serializeError,
 
         transport: [
-            new LogFileRotationTransport({ filename: path.join(rootDirName, "logs", "server.log") }),
+            new LogFileRotationTransport({ filename: path.join(rootDirName, "logs", `server${port}.log`) }),
             new TsLogTransport({ logger: new Logger() })
         ],
     });
@@ -97,6 +97,5 @@ export async function initAppService(domain: string, port: number) {
         log.info(`Hosting the Api at ${url.origin}`);
     });
 
-    const r = new AppService(url, e, httpServer, await createDataSource(port), log);
-    return r;
+    return new AppService(url, e, httpServer, await initDataSource(port), log);
 }

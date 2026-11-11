@@ -15,7 +15,7 @@ export type Expand<T> = { [K in keyof T]: T[K] };
 export type Result<T, E> = { success: true, data: T } | { success: false, error: E };
 export type Option<T> = { data: T } | undefined;
 
-export function getUnixSeconds() {
+export function currentUnixSeconds() {
     return Math.trunc(Date.now() / 1000);
 }
 
@@ -55,6 +55,10 @@ export function isInteger(v: unknown): v is number {
 /** {@link Number.isSafeInteger} that also narrows down the type of the value on success */
 export function isSafeInteger(v: unknown): v is number {
     return Number.isSafeInteger(v);
+}
+
+export function isFinite(v: unknown): v is number {
+    return Number.isFinite(v);
 }
 
 export function partialOrd<T>(lhs: T, rhs: T) {

@@ -76,14 +76,14 @@ export const LoginDataContext = createContext({
 
 export const RoomArrayContext = createContext({
     roomArray: [] as RoomArray,
-    setRoomArray(value: RoomArray) { this.roomArray = value; }
+    setRoomArray(value: RoomArray): void { throw new NotImplementedError(); }
 });
 
 export const ServerOriginsContext = createContext([homeOrigin] as string[]);
 
-export const CurrentRoomContext = createContext({
-    currentRoom: null as Nullable<Room>,
-    setCurrentRoom(value: Nullable<Room>) { this.currentRoom = value; }
+export const RoomContext = createContext({
+    room: null as Nullable<Room>,
+    setRoom(value: Nullable<Room>): void { throw new NotImplementedError(); }
 });
 
 export async function getRoomsOf(token: string, origin: string) {
@@ -115,10 +115,9 @@ export const ErrorContext = createContext({
 
 export const TokenContext = createContext(null as Nullable<string>);
 export const AccountContext = createContext(null as Nullable<Account>);
-export const RoomContext = createContext(null as Nullable<Room>);
 export const MessagesContext = createContext(null as Nullable<Message[]>);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthOps({ children }: { children?: React.ReactNode }) {
     const [token, setToken] = useState(null as Nullable<string>);
     const [account, setAccount] = useState(null as Nullable<Account>);
     const { setError } = useContext(ErrorContext);

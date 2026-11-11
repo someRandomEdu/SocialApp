@@ -251,8 +251,7 @@ export async function initRoomService(appService: AppService, serverService: Ser
             } satisfies ProblemDetail);
         }
 
-        const v = await accountService.verifyRawForeignAccountToken(
-            req.headers.authorization);
+        const v = await accountService.verifyRawForeignAccountToken(req.headers.authorization);
 
         if (!v.success) {
             return res.status(v.error.status).send(v.error);

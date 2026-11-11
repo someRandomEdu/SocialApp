@@ -55,4 +55,6 @@ export declare const modifyMessageSchema: z.ZodObject<{
     content: z.ZodString;
 }, z.core.$strip>;
 export type ModifyMessage = z.infer<typeof modifyMessageSchema>;
+export declare function messageIdEq(lhs: Readonly<Message>, rhs: Readonly<Message>): boolean;
+export declare function messageIdNe(lhs: Readonly<Message>, rhs: Readonly<Message>): boolean;
 //# sourceMappingURL=message.d.ts.map

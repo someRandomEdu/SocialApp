@@ -28,22 +28,24 @@ import {
     AccountContext,
     accountNameOfId,
     AuthOpsContext,
-    AuthProvider,
-    CurrentRoomContext,
+    AuthOps,
+    RoomContext,
     getRoomsOf,
     log,
     LoginDataContext,
+    MessagesContext,
     RoomArrayContext,
     ServerOriginsContext,
+    socket,
     theme,
     TokenContext
 } from "./utils";
 
 import { Room, RoomArray } from "../shared/room";
-import { Message, messageArraySchema } from "../shared/message";
+import { Message, messageArraySchema, messageIdEq, messageIdNe } from "../shared/message";
 import z from "zod";
 import { io } from "socket.io-client";
-import { ORIGIN } from "../shared/routes";
+import { ORIGIN, ServerToClientEvents } from "../shared/routes";
 
 // https://react-typescript-cheatsheet.netlify.app/
 // https://www.mui-treasury.com/
@@ -73,7 +75,7 @@ function MessageView({ message }: { message: Message }) {
 
 function SideBar() {
     const { roomArray, setRoomArray } = useContext(RoomArrayContext);
-    const { setCurrentRoom } = useContext(CurrentRoomContext);
+    const { setRoom: setCurrentRoom } = useContext(RoomContext);
     const token = useContext(TokenContext);
     const account = useContext(AccountContext);
 
@@ -279,106 +281,110 @@ function LoginPanel() {
     </>;
 }
 
+function ChatPanel() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    const room = useContext(RoomContext);
+
+    useEffect(() => {
+        function onMessageCreated(data: Message) {
+            setMessages([...messages, data]);
+        }
+
+        function onMessageModified(oldData: Message, newData: Message) {
+            const i = messages.findIndex((m) => messageIdEq(m, oldData));
+
+            if (i < 0) {
+                log.withContext({ oldData, newData }).warn("Can't find the old message matching the one server sent!");
+                return;
+            }
+
+            const msgs = [...messages];
+            msgs[i] = newData;
+            setMessages(msgs);
+        }
+
+        function onMessageDeleted(data: Message) {
+            setMessages(messages.filter((m) => messageIdNe(m, data)));
+        }
+
+        socket.on("onMessageCreated" satisfies keyof ServerToClientEvents, onMessageCreated);
+        socket.on("onMessageModified" satisfies keyof ServerToClientEvents, onMessageModified);
+        socket.on("onMessageDeleted" satisfies keyof ServerToClientEvents, onMessageDeleted);
+
+        return () => {
+            socket.off("onMessageCreated" satisfies keyof ServerToClientEvents, onMessageCreated);
+            socket.off("onMessageModified" satisfies keyof ServerToClientEvents, onMessageModified);
+            socket.off("onMessageDeleted" satisfies keyof ServerToClientEvents, onMessageDeleted);
+        };
+    }, [socket]);
+
+    return <>
+
+    </>;
+}
+
 function App() {
     return <>
-        <ThemeProvider theme={theme}>
-            <CssBaseline>
+        <Box sx={{
+            display: "flex",
+            flexDirection: "row",
+            minHeight: 0,
+            height: "100vh"
+        }}>
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                width: "fit-content",
+                height: "100%"
+            }}>
                 <Box sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    minHeight: 0,
-                    height: "100vh"
+                    position: "relative",
+                    top: 0,
+                    left: 0,
+                    overflowX: "auto",
+                    border: "2px solid",
+                    borderColor: "pink"
                 }}>
-                    <Box sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        width: "fit-content",
-                        height: "100%"
-                    }}>
-                        <Box sx={{
-                            position: "relative",
-                            top: 0,
-                            left: 0,
-                            overflowX: "auto",
-                            border: "2px solid",
-                            borderColor: "pink"
-                        }}>
-                            <SideBar></SideBar>
-                        </Box>
-
-                        <Box sx={{
-                            position: "relative", bottom: 0, left: 0, display: "inline-flex",
-                            flexDirection: "column-reverse", alignSelf: "flex-end", width: "20vw",
-                            height: "auto", marginTop: "auto", border: "2px solid", borderColor: "pink"
-                        }}>
-                            <LoginPanel></LoginPanel>
-                            <ServerVisitor></ServerVisitor>
-                        </Box>
-                    </Box>
-
-                    <Box sx={{
-                        flex: 1
-                    }}>
-
-                    </Box>
+                    <SideBar></SideBar>
                 </Box>
-            </CssBaseline>
-        </ThemeProvider>
-    </>;
-}
 
-const TestContext = createContext(null as Nullable<string>);
-const TestOpsContext = createContext({ test: null as Nullable<string>, setTest(value: Nullable<string>) {} });
+                <Box sx={{
+                    position: "relative", bottom: 0, left: 0, display: "inline-flex",
+                    flexDirection: "column-reverse", alignSelf: "flex-end", width: "20vw",
+                    height: "auto", marginTop: "auto", border: "2px solid", borderColor: "pink"
+                }}>
+                    <LoginPanel></LoginPanel>
+                    <ServerVisitor></ServerVisitor>
+                </Box>
+            </Box>
 
-function Inner() {
-    const test = useContext(TestContext);
+            <Box sx={{
+                flex: 1
+            }}>
 
-    return <>
-        {`your test token: ${test}`}
-    </>;
-}
-
-function InnerOps({ children }: { children?: React.ReactNode }) {
-    const test = useContext(TestContext);
-    const { test: testOp, setTest } = useContext(TestOpsContext);
-
-    return <>
-        <div>{`test: ${test}`}</div>
-        <div>{`testOp: ${testOp}`}</div>
-        <button onClick={() => setTest(crypto.randomUUID())}>set test</button>
-    </>;
-}
-
-function Test({ children }: { children?: React.ReactNode }) {
-    const [test, setTest] = useState(null as Nullable<string>);
-
-    return <>
-        <TestContext value={test}>
-            <TestOpsContext value={{ test, setTest }}>
-                <div>{children}</div>
-                <InnerOps></InnerOps>
-            </TestOpsContext>
-        </TestContext>
-
-        <button onClick={() => setTest(crypto.randomUUID())}>Click me!</button>
+            </Box>
+        </Box>
     </>;
 }
 
 export function Main() {
     const [loginData, setLoginData] = useState(undefined as Nullable<LoginData>);
-    const [roomList, setRoomList] = useState([] as RoomArray);
-    const [chatPanel, setChatPanel] = useState(<>When logged in, messages will be displayed here.</>);
+    const [roomArray, setRoomArray] = useState([] as RoomArray);
     const [currentRoom, setCurrentRoom] = useState(null as Nullable<Room>);
 
-    return <>    
-        <AuthProvider>
+    return <>
+        <AuthOps>
             <LoginDataContext value={{ loginData, setLoginData }}>
-                <RoomArrayContext value={{ roomArray: roomList, setRoomArray: setRoomList }}>
-                        <CurrentRoomContext value={{ currentRoom, setCurrentRoom }}>
-                            <App></App>
-                        </CurrentRoomContext>
+                <RoomArrayContext value={{ roomArray, setRoomArray }}>
+                        <RoomContext value={{ room: currentRoom, setRoom: setCurrentRoom }}>
+                            <ThemeProvider theme={theme}>
+                                <CssBaseline>
+                                    <App></App>
+                                </CssBaseline>
+                            </ThemeProvider>
+                        </RoomContext>
                 </RoomArrayContext>
             </LoginDataContext>
-        </AuthProvider>
+        </AuthOps>
     </>;
 }

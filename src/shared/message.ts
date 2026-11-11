@@ -32,3 +32,14 @@ export const modifyMessageSchema = z.object({
 });
 
 export type ModifyMessage = z.infer<typeof modifyMessageSchema>;
+
+export function messageIdEq(lhs: Readonly<Message>, rhs: Readonly<Message>) {
+    return lhs.id === rhs.id && lhs.senderAccount.id === rhs.senderAccount.id 
+        && lhs.senderAccount.origin === rhs.senderAccount.origin;
+}
+
+export function messageIdNe(lhs: Readonly<Message>, rhs: Readonly<Message>) {
+    return lhs.id !== rhs.id || lhs.senderAccount.id !== rhs.senderAccount.id 
+        || lhs.senderAccount.origin !== rhs.senderAccount.origin;
+}
+

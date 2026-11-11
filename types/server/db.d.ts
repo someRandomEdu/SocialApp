@@ -47,9 +47,15 @@ export type DbRoomBannedMember = {
     readonly accountId: number;
     readonly accountOrigin: string;
 };
+export type DbRoomInviteToken = {
+    readonly id: number;
+    readonly roomId: number;
+    readonly token: string;
+};
 export declare const dbMessageSchema: EntitySchema<DbMessage>;
 export declare const dbRoomSchema: EntitySchema<DbRoom>;
 export declare const dbRoomMemberSchema: EntitySchema<DbRoomMember>;
 export declare const dbRoomBannedMemberSchema: EntitySchema<DbRoomBannedMember>;
-export declare function createDataSource(port: number): Promise<DataSource>;
+export declare const dbRoomInviteToken: EntitySchema<DbRoomInviteToken>;
+export declare function initDataSource(port: number): Promise<DataSource>;
 //# sourceMappingURL=db.d.ts.map

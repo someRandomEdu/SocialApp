@@ -1,6 +1,7 @@
 import { DataSource, EntitySchema } from "typeorm";
 import { EntityTypes } from "../shared/id.ts";
 import * as path from "node:path";
+import { isInteger } from "../shared/utils.ts";
 
 export type DbAccount = {
     readonly id: number;
@@ -66,6 +67,12 @@ export type DbRoomBannedMember = {
     readonly accountOrigin: string;
 };
 
+export type DbRoomInviteToken = {
+    readonly id: number;
+    readonly roomId: number;
+    readonly token: string;
+};
+
 export const dbMessageSchema = new EntitySchema<DbMessage>({
     name: "messages",
 
@@ -105,7 +112,7 @@ export const dbRoomMemberSchema = new EntitySchema<DbRoomMember>({
         id: { type: "int", primary: true, generated: true },
         
         roomId: { type: "int", nullable: false, foreignKey: { 
-            target: "rooms", 
+            target: dbRoomSchema.options.name, 
             inverseSide: "id" satisfies keyof DbRoom, 
             onDelete: "CASCADE" 
         }},
@@ -124,7 +131,7 @@ export const dbRoomBannedMemberSchema = new EntitySchema<DbRoomBannedMember>({
         id: { type: "int", primary: true, generated: true },
 
         roomId: { type: "int", nullable: false, foreignKey: { 
-            target: "rooms", 
+            target: dbRoomSchema.options.name, 
             inverseSide: "id" satisfies keyof DbRoom, 
             onDelete: "CASCADE" 
         }},
@@ -136,10 +143,28 @@ export const dbRoomBannedMemberSchema = new EntitySchema<DbRoomBannedMember>({
     uniques: [{ columns: ["roomId", "accountId", "accountOrigin"] }],
 });
 
-export async function createDataSource(port: number) {
+export const dbRoomInviteToken = new EntitySchema<DbRoomInviteToken>({
+    name: "InviteToken",
+
+    columns: {
+        id: { type: "int", primary: true, generated: true },
+
+        roomId: { type: "int", nullable: false, foreignKey: {
+            target: dbRoomSchema.options.name,
+            inverseSide: "id" satisfies keyof DbRoom,
+            onDelete: "CASCADE"
+        }},
+
+        token: { type: String, nullable: false }
+    },
+
+    uniques: [{ columns: ["roomId" satisfies keyof DbRoomInviteToken, "token" satisfies keyof DbRoomInviteToken] }]
+});
+
+export async function initDataSource(port: number) {
     return await new DataSource({
         type: "better-sqlite3",
-        database: path.join(import.meta.dirname, "..", "..", "data", `serverData${port}.db`),
+        database: path.join(import.meta.dirname, "..", "..", "data", `server${port}.db`),
         entities: [dbAccountSchema, dbMessageSchema, dbRoomSchema, dbRoomBannedMemberSchema, dbRoomMemberSchema],
         synchronize: true,
         dropSchema: false

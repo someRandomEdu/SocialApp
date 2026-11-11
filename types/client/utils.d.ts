@@ -19,9 +19,9 @@ export declare const RoomArrayContext: React.Context<{
     setRoomArray(value: RoomArray): void;
 }>;
 export declare const ServerOriginsContext: React.Context<string[]>;
-export declare const CurrentRoomContext: React.Context<{
-    currentRoom: Nullable<Room>;
-    setCurrentRoom(value: Nullable<Room>): void;
+export declare const RoomContext: React.Context<{
+    room: Nullable<Room>;
+    setRoom(value: Nullable<Room>): void;
 }>;
 export declare function getRoomsOf(token: string, origin: string): Promise<{
     id: number;
@@ -51,17 +51,6 @@ export declare const AccountContext: React.Context<Nullable<{
     createdAt: Date;
     lastModifiedAt: Date;
 }>>;
-export declare const RoomContext: React.Context<Nullable<{
-    id: number;
-    name: string;
-    isPublic: boolean;
-    createdAt: Date;
-    description: string;
-    ownerAccount: {
-        id: number;
-        origin: string;
-    };
-}>>;
 export declare const MessagesContext: React.Context<Nullable<{
     id: string;
     senderAccount: {
@@ -85,8 +74,8 @@ export declare const MessagesContext: React.Context<Nullable<{
     createdAt: Date;
     lastModifiedAt: Date;
 }[]>>;
-export declare function AuthProvider({ children }: {
-    children: React.ReactNode;
+export declare function AuthOps({ children }: {
+    children?: React.ReactNode;
 }): React.JSX.Element;
 export declare function getAccNameCache({ id, origin }: UntypedId): string | undefined;
 export declare function isInAccNameCache({ id, origin }: UntypedId): boolean;
