@@ -27,15 +27,15 @@ export const accountCredentialsSchema = createAccountSchema.omit({
 
 export type AccountCredentials = z.infer<typeof accountCredentialsSchema>;
 
-export const modifyAccountSchema = z.object({ 
+export const modifyAccountDataSchema = z.object({ 
     currentPassword: z.string() 
 }).and(createAccountSchema.exactPartial());
 
-export type ModifyAccount = z.infer<typeof modifyAccountSchema>;
+export type ModifyAccountData = z.infer<typeof modifyAccountDataSchema>;
 
-export const loginDataSchema = z.object({
+export const successfulLoginDataSchema = z.object({
     account: accountSchema,
     token: z.string()
 });
 
-export type LoginData = z.infer<typeof loginDataSchema>;
+export type SuccessfulLoginData = z.infer<typeof successfulLoginDataSchema>;

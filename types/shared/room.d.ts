@@ -12,6 +12,7 @@ export declare const roomMemberSchema: z.ZodObject<{
 export type RoomMember = z.infer<typeof roomMemberSchema>;
 export declare const roomSchema: z.ZodObject<{
     id: z.ZodInt;
+    origin: z.ZodString;
     name: z.ZodString;
     isPublic: z.ZodBoolean;
     createdAt: z.ZodCoercedDate<unknown>;
@@ -21,8 +22,9 @@ export declare const roomSchema: z.ZodObject<{
         origin: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>;
-export declare const roomArraySchema: z.ZodArray<z.ZodObject<{
+export declare const roomListSchema: z.ZodArray<z.ZodObject<{
     id: z.ZodInt;
+    origin: z.ZodString;
     name: z.ZodString;
     isPublic: z.ZodBoolean;
     createdAt: z.ZodCoercedDate<unknown>;
@@ -38,7 +40,7 @@ export declare const modifyRoomSchema: z.ZodObject<{
     description: z.ZodExactOptional<z.ZodDefault<z.ZodString>>;
 }, z.core.$strip>;
 export type Room = z.infer<typeof roomSchema>;
-export type RoomArray = z.infer<typeof roomArraySchema>;
+export type RoomList = z.infer<typeof roomListSchema>;
 export declare const createRoomInviteSchema: z.ZodObject<{
     expireAt: z.ZodExactOptional<z.ZodCoercedDate<unknown>>;
 }, z.core.$strip>;

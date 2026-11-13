@@ -22,7 +22,7 @@ export declare const messageSchema: z.ZodObject<{
     createdAt: z.ZodCoercedDate<unknown>;
     lastModifiedAt: z.ZodCoercedDate<unknown>;
 }, z.core.$strip>;
-export declare const messageArraySchema: z.ZodArray<z.ZodObject<{
+export declare const messageListSchema: z.ZodArray<z.ZodObject<{
     id: z.ZodString;
     senderAccount: z.ZodObject<{
         id: z.ZodInt;
@@ -46,7 +46,7 @@ export declare const messageArraySchema: z.ZodArray<z.ZodObject<{
     lastModifiedAt: z.ZodCoercedDate<unknown>;
 }, z.core.$strip>>;
 export type Message = z.infer<typeof messageSchema>;
-export type MessageArray = z.infer<typeof messageArraySchema>;
+export type MessageList = z.infer<typeof messageListSchema>;
 export declare const createMessageSchema: z.ZodObject<{
     content: z.ZodString;
 }, z.core.$strip>;

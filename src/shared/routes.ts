@@ -18,6 +18,17 @@ export const socketRoomNames = Object.freeze({
     dm(id: number) { return `dms/${id}` as const; }
 } as const);
 
+export const routeNames = Object.freeze({
+    accounts(origin: string) { return `${origin}/accounts` as const; },
+    account(origin: string, id: number) { return `${this.accounts(origin)}/${id}` as const; },
+    accountMessages(origin: string, id: number) { return `${this.account(origin, id)}/messages` as const; },
+    accountMessage(origin: string, accId: number, msgId: string) { return `${this.accountMessages(origin, accId)}/${msgId}` as const; },
+    rooms(origin: string) { return `${origin}/rooms` as const; },
+    room(origin: string, id: number) { return `${this.rooms(origin)}/${id}` as const; },
+    roomMessages(origin: string, id: number) { return `${this.room(origin, id)}/messages` as const; },
+    roomMessage(origin: string, roomId: number, msgId: string) { return `${this.roomMessages(origin, roomId)}/${msgId}` as const; }
+} as const);
+
 // https://socket.io/docs/v4/emit-cheatsheet
 
 export interface ClientToServerEvents {

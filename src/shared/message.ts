@@ -16,10 +16,10 @@ export const messageSchema = z.object({
     lastModifiedAt: z.coerce.date()
 });
 
-export const messageArraySchema = messageSchema.array();
+export const messageListSchema = messageSchema.array();
 
 export type Message = z.infer<typeof messageSchema>;
-export type MessageArray = z.infer<typeof messageArraySchema>;
+export type MessageList = z.infer<typeof messageListSchema>;
 
 export const createMessageSchema = z.object({
     content: z.string(),
@@ -42,4 +42,3 @@ export function messageIdNe(lhs: Readonly<Message>, rhs: Readonly<Message>) {
     return lhs.id !== rhs.id || lhs.senderAccount.id !== rhs.senderAccount.id 
         || lhs.senderAccount.origin !== rhs.senderAccount.origin;
 }
-

@@ -1,6 +1,6 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Main } from "./app.tsx";
+import { EntryPoint } from "./app.tsx";
 import { log } from "./utils.tsx";
 
 log.info(`React version: ${React.version}`);
@@ -12,7 +12,7 @@ if (!r) {
 } else {
     createRoot(r).render(
         <StrictMode>
-            <Main></Main>
+            <EntryPoint></EntryPoint>
         </StrictMode>
     );
 

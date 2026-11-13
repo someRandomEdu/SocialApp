@@ -20,15 +20,15 @@ export declare const accountCredentialsSchema: z.ZodObject<{
     password: z.ZodString;
 }, z.core.$strip>;
 export type AccountCredentials = z.infer<typeof accountCredentialsSchema>;
-export declare const modifyAccountSchema: z.ZodIntersection<z.ZodObject<{
+export declare const modifyAccountDataSchema: z.ZodIntersection<z.ZodObject<{
     currentPassword: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     name: z.ZodExactOptional<z.ZodString>;
     password: z.ZodExactOptional<z.ZodString>;
     description: z.ZodExactOptional<z.ZodDefault<z.ZodString>>;
 }, z.core.$strip>>;
-export type ModifyAccount = z.infer<typeof modifyAccountSchema>;
-export declare const loginDataSchema: z.ZodObject<{
+export type ModifyAccountData = z.infer<typeof modifyAccountDataSchema>;
+export declare const successfulLoginDataSchema: z.ZodObject<{
     account: z.ZodObject<{
         id: z.ZodNumber;
         name: z.ZodString;
@@ -39,5 +39,5 @@ export declare const loginDataSchema: z.ZodObject<{
     }, z.core.$strip>;
     token: z.ZodString;
 }, z.core.$strip>;
-export type LoginData = z.infer<typeof loginDataSchema>;
+export type SuccessfulLoginData = z.infer<typeof successfulLoginDataSchema>;
 //# sourceMappingURL=account.d.ts.map

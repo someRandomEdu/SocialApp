@@ -1,4 +1,4 @@
-import { accountCredentialsSchema, createAccountSchema, modifyAccountSchema, Account } from "../shared/account.ts";
+import { accountCredentialsSchema, createAccountSchema, modifyAccountDataSchema, Account } from "../shared/account.ts";
 import { AppService } from "./appService.ts";
 import { HttpStatusCodes, ProblemDetail } from "../shared/net.ts";
 import { DbAccount, dbAccountSchema, DbMessage, dbMessageSchema, dbRoomMemberSchema, dbRoomSchema } from "./db.ts";
@@ -347,7 +347,7 @@ export async function initAccountService(appService: AppService, serverService: 
             } satisfies ProblemDetail);
         }
 
-        const d = modifyAccountSchema.safeParse(req.body);
+        const d = modifyAccountDataSchema.safeParse(req.body);
 
         if (!d.success) {
             return res.status(HttpStatusCodes.BadRequest).type("application/problem+json").send({

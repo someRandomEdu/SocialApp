@@ -61,7 +61,7 @@ export async function initAppService(domain: string, port: number) {
         transport: [
             new LogFileRotationTransport({ filename: path.join(rootDirName, "logs", `server${port}.log`) }),
             new TsLogTransport({ logger: new Logger() })
-        ],
+        ]
     });
 
     const e = express();

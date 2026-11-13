@@ -1,7 +1,7 @@
 import React from "react";
 import { Nullable, Result } from "../shared/utils";
-import { AccountCredentials, LoginData } from "../shared/account";
-import { Room, RoomArray } from "../shared/room";
+import { SuccessfulLoginData, Account, ModifyAccountData } from "../shared/account";
+import { Room, RoomList } from "../shared/room";
 import { UntypedId } from "../shared/id.ts";
 import { ClientToServerEvents, ServerToClientEvents } from "../shared/routes.ts";
 import { Socket as ClientSocket } from "socket.io-client";
@@ -11,12 +11,12 @@ export declare const theme: import("@mui/material").Theme;
 export declare const homeOrigin = "https://localhost:3000";
 export declare const log: LogLayer;
 export declare const LoginDataContext: React.Context<{
-    loginData: Nullable<LoginData>;
-    setLoginData(value: Nullable<LoginData>): void;
+    loginData: Nullable<SuccessfulLoginData>;
+    setLoginData(value: Nullable<SuccessfulLoginData>): void;
 }>;
-export declare const RoomArrayContext: React.Context<{
-    roomArray: RoomArray;
-    setRoomArray(value: RoomArray): void;
+export declare const RoomListContext: React.Context<{
+    roomList: RoomList;
+    setRoomList(value: RoomList): void;
 }>;
 export declare const ServerOriginsContext: React.Context<string[]>;
 export declare const RoomContext: React.Context<{
@@ -25,6 +25,7 @@ export declare const RoomContext: React.Context<{
 }>;
 export declare function getRoomsOf(token: string, origin: string): Promise<{
     id: number;
+    origin: string;
     name: string;
     isPublic: boolean;
     createdAt: Date;
@@ -34,9 +35,10 @@ export declare function getRoomsOf(token: string, origin: string): Promise<{
         origin: string;
     };
 }[]>;
-export declare const AuthOpsContext: React.Context<{
-    login({ name, password }: AccountCredentials): Promise<Result<LoginData, string>>;
-    logout(): boolean;
+export declare const AccountOperationsContext: React.Context<{
+    login(name: string, password: string, origin: string): Promise<Result<Account, unknown>>;
+    logout(): Promise<boolean>;
+    changeAccountInfo({ currentPassword, name, password, description }: ModifyAccountData): Promise<Result<Account, string>>;
 }>;
 export declare const ErrorContext: React.Context<{
     error: Nullable<string>;
@@ -74,7 +76,7 @@ export declare const MessagesContext: React.Context<Nullable<{
     createdAt: Date;
     lastModifiedAt: Date;
 }[]>>;
-export declare function AuthOps({ children }: {
+export declare function AccountOperations({ children }: {
     children?: React.ReactNode;
 }): React.JSX.Element;
 export declare function getAccNameCache({ id, origin }: UntypedId): string | undefined;

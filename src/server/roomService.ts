@@ -40,6 +40,7 @@ export async function initRoomService(appService: AppService, serverService: Ser
     function toRoom({ id, name, isPublic, description, createdAt, ownerAccountId, ownerAccountOrigin }: DbRoom): Room {
         return {
             id,
+            origin: appService.origin,
             name,
             isPublic,
             createdAt,

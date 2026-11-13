@@ -13,6 +13,16 @@ export declare const socketRoomNames: Readonly<{
     readonly room: (id: number) => `/rooms/${number}`;
     readonly dm: (id: number) => `dms/${number}`;
 }>;
+export declare const routeNames: Readonly<{
+    readonly accounts: (origin: string) => `${string}/accounts`;
+    readonly account: (origin: string, id: number) => `${string}/accounts/${number}`;
+    readonly accountMessages: (origin: string, id: number) => `${string}/accounts/${number}/messages`;
+    readonly accountMessage: (origin: string, accId: number, msgId: string) => `${string}/accounts/${number}/messages/${string}`;
+    readonly rooms: (origin: string) => `${string}/rooms`;
+    readonly room: (origin: string, id: number) => `${string}/rooms/${number}`;
+    readonly roomMessages: (origin: string, id: number) => `${string}/rooms/${number}/messages`;
+    readonly roomMessage: (origin: string, roomId: number, msgId: string) => `${string}/rooms/${number}/messages/${string}`;
+}>;
 export interface ClientToServerEvents {
     onRequestListenAccount(id: number, callback: Fn<[Result<Account, string>]>): void;
     onRequestLeaveAccount(id: number): void;

@@ -18,6 +18,7 @@ export type RoomMember = z.infer<typeof roomMemberSchema>;
 
 export const roomSchema = z.object({
     id: z.int(),
+    origin: z.string(),
     name: z.string(),
     isPublic: z.boolean(),
     createdAt: z.coerce.date(),
@@ -25,7 +26,7 @@ export const roomSchema = z.object({
     ownerAccount: untypedIdSchema,
 });
 
-export const roomArraySchema = roomSchema.array();
+export const roomListSchema = roomSchema.array();
 
 export const modifyRoomSchema = z.object({
     name: createRoomSchema.shape.name.exactOptional(),
@@ -34,7 +35,7 @@ export const modifyRoomSchema = z.object({
 });
 
 export type Room = z.infer<typeof roomSchema>;
-export type RoomArray = z.infer<typeof roomArraySchema>;
+export type RoomList = z.infer<typeof roomListSchema>;
 
 export const createRoomInviteSchema = z.object({
     expireAt: z.coerce.date().exactOptional()

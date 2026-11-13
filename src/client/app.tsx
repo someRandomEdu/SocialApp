@@ -17,35 +17,35 @@ import {
     Typography
 } from "@mui/material";
 
-import { LoginData, loginDataSchema, Account } from "../shared/account";
+import { SuccessfulLoginData, successfulLoginDataSchema, Account } from "../shared/account";
 import LoginIcon from '@mui/icons-material/Login';
 import ExploreIcon from '@mui/icons-material/Explore';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SendIcon from '@mui/icons-material/Send';
-import { invoke, isNullish, Nullable } from "../shared/utils";
+import { invoke, isNullish, Json, Nullable } from "../shared/utils";
 
 import {
     AccountContext,
     accountNameOfId,
-    AuthOpsContext,
-    AuthOps,
+    AccountOperationsContext,
+    AccountOperations,
     RoomContext,
     getRoomsOf,
     log,
     LoginDataContext,
-    MessagesContext,
-    RoomArrayContext,
+    RoomListContext,
     ServerOriginsContext,
     socket,
     theme,
     TokenContext
 } from "./utils";
 
-import { Room, RoomArray } from "../shared/room";
-import { Message, messageArraySchema, messageIdEq, messageIdNe } from "../shared/message";
+import { Room, RoomList } from "../shared/room";
+import { Message, messageListSchema, messageIdEq, messageIdNe } from "../shared/message";
 import z from "zod";
 import { io } from "socket.io-client";
-import { ORIGIN, ServerToClientEvents } from "../shared/routes";
+import { ORIGIN, routeNames, ServerToClientEvents } from "../shared/routes";
+import { problemDetailSchema } from "../shared/net";
 
 // https://react-typescript-cheatsheet.netlify.app/
 // https://www.mui-treasury.com/
@@ -74,7 +74,7 @@ function MessageView({ message }: { message: Message }) {
 }
 
 function SideBar() {
-    const { roomArray, setRoomArray } = useContext(RoomArrayContext);
+    const { roomList, setRoomList } = useContext(RoomListContext);
     const { setRoom: setCurrentRoom } = useContext(RoomContext);
     const token = useContext(TokenContext);
     const account = useContext(AccountContext);
@@ -92,7 +92,7 @@ function SideBar() {
             }
 
             const roomList = await getRoomsOf(token, account.origin);
-            setRoomArray(roomList);
+            setRoomList(roomList);
         }).then();
     }, [token, account]);
 
@@ -100,11 +100,13 @@ function SideBar() {
         <Typography>Servers</Typography>
 
         <ul>
-            {roomArray.map((room, i) =>
-                <li key={i}>
-                    <Button onClick={(_) =>
-                        onClickServer(room)}>{room.name}</Button>
-                </li>)}
+            {
+                roomList.map((room, i) =>
+                    <li key={i}>
+                        <Button onClick={(_) =>
+                            onClickServer(room)}>{room.name}</Button>
+                    </li>)
+            }
         </ul>
     </>;
 }
@@ -159,58 +161,39 @@ function ServerVisitor() {
 function LoginPanel() {
     const [dialogOpened, setDialogOpened] = useState(false);
     const [displayErrorNotification, setDisplayErrorNotification] = useState(false);
-    const [loginError, setLoginError] = useState("");
-    const { login } = useContext(AuthOpsContext);
+    const [loginError, setLoginError] = useState(null as Nullable<string>);
+    const { login } = useContext(AccountOperationsContext);
 
     async function onSubmitLoginForm(e: React.SubmitEvent<HTMLFormElement>) {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        const name = formData.get("name") as string;
-        const password = formData.get("password") as string;
-        const origin = formData.get("origin") as string;
+        const name = formData.get("name");
+        const password = formData.get("password");
+        const origin = formData.get("origin");
 
-        try {
-            const rawLoginData = await fetch(`${origin}/accounts/sessions`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name, password: password })
-            });
+        if (typeof name !== "string" || typeof password !== "string" || typeof origin !== "string") {
+            log.withContext({ name, password, origin }).error(`"name", "password" and "origin" are not all strings!`);
+            setLoginError(`"name", "password" and "origin" are not all strings!`);
+            return;
+        }
 
-            if (!rawLoginData.ok) {
-                const e = `Fetch error: ${rawLoginData.status} ${await rawLoginData.json()}`;
-                setLoginError(e);
-                console.error(e);
+        const r = await login(name, password, origin);
+
+        if (!r.success) {
+            const { success, data, error } = problemDetailSchema.safeParse(r.error);
+            const errLog = log.withContext({ error: r.error });
+
+            if (!success) {
+                setLoginError(`Unknown error!`);
+                errLog.withContext({ errorBodyParseError: error }).warn(`Unknown error occurred!`);
                 return;
             }
 
-            console.log("Received login data from server!");
-            const j = loginDataSchema.safeParse(await rawLoginData.json());
-            console.log(j);
-
-            if (!j.success) {
-                const e = `Malformed server data received; parser error: ${j.error}`;
-                console.error(e);
-                setLoginError(e);
-                setDisplayErrorNotification(true);
-                return;
-            }
-
-            const a: Account = j.data.account;
-
-            if (a.name !== name || a.origin !== origin) {
-                const e = `Server didn't return matching account data...`;
-                console.error(e);
-                setLoginError(e);
-                setDisplayErrorNotification(true);
-                return;
-            }
-
-            console.log("Successfully logged in!");
-            setDialogOpened(false);
-        } catch (e) {
-            setLoginError(`Possibly unknown error occurred: ${e}`);
-            console.error(e);
-            setDisplayErrorNotification(true);
+            const { title } = data;
+            const loginError = `${title}`;
+            errLog.withContext(data).info(loginError);
+            setLoginError(loginError);
+            return;
         }
     }
 
@@ -226,39 +209,44 @@ function LoginPanel() {
             <Dialog id="loginForm" open={dialogOpened} slotProps={{ paper: { sx: { border: "2px solid pink" } } }}
                 onClose={(e) => setDialogOpened(false)}>
                 <Box sx={{ display: "inline-flex", flexDirection: "column" }}>
-                    <DialogTitle sx={{ color: theme.palette.primary.main }}>Welcome back~</DialogTitle>
+                    <DialogTitle sx={{ color: theme.palette.primary.main }}>{"Welcome back~"}</DialogTitle>
 
                     <DialogContent sx={{ display: "inline-flex", flexDirection: "column" }}>
                         <form onSubmit={onSubmitLoginForm}>
                             <Box sx={{ display: "inline-flex", flexDirection: "column", gap: "4px" }}>
                                 <TextField required={true} name="name" autoComplete="username" label="Username"
                                     type="text" variant="outlined"
+
                                     sx={{
                                         "& .MuiOutlinedInput-notchedOutline": {
                                             borderColor: "pink"
                                         }
                                     }}
+
                                     slotProps={{ inputLabel: { sx: { color: theme.palette.primary.main } } }}>
                                 </TextField>
 
                                 <TextField required={true} name="password" autoComplete="current-password" label="Password"
                                     type="password" variant="outlined"
+
                                     sx={{
                                         "& .MuiOutlinedInput-notchedOutline": {
                                             borderColor: "pink"
                                         }
                                     }}
+
                                     slotProps={{ inputLabel: { sx: { color: theme.palette.primary.main } } }}>
                                 </TextField>
 
-                                {/* TODO: Remove explicit origin field? */}
                                 <TextField required={true} name="origin" autoComplete="url" label="Origin"
                                     type="url" variant="outlined"
+
                                     sx={{
                                         "& .MuiOutlinedInput-notchedOutline": {
                                             borderColor: "pink"
                                         }
                                     }}
+
                                     slotProps={{ inputLabel: { sx: { color: theme.palette.primary.main } } }}>
                                 </TextField>
 
@@ -270,9 +258,9 @@ function LoginPanel() {
                     </DialogContent>
 
                     <Snackbar open={displayErrorNotification} autoHideDuration={5000} message="Login error"
-                        onClose={(e) => setDisplayErrorNotification(false)}>
+                        onClose={(_) => setDisplayErrorNotification(false)}>
                         <Alert variant="outlined" severity="error" sx={{}}>
-                            An error occurred while logging in: {loginError}
+                            {loginError}
                         </Alert>
                     </Snackbar>
                 </Box>
@@ -283,7 +271,8 @@ function LoginPanel() {
 
 function ChatPanel() {
     const [messages, setMessages] = useState<Message[]>([]);
-    const room = useContext(RoomContext);
+    const { room } = useContext(RoomContext);
+    const token = useContext(TokenContext);
 
     useEffect(() => {
         function onMessageCreated(data: Message) {
@@ -306,20 +295,77 @@ function ChatPanel() {
         function onMessageDeleted(data: Message) {
             setMessages(messages.filter((m) => messageIdNe(m, data)));
         }
+        
+        async function fetchMessages() {
+            if (!room) { 
+                log.error("User hasn't selected a room yet!");
+                return;
+            }
+
+            try {
+                const response = await fetch(routeNames.roomMessages(room.origin, room.id), {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                const body: Json = await response.json();
+
+                if (!response.ok) {
+                    log.withMetadata({ error: body }).error(`Fetching messages of room ${room.name} failed with status ${response.status}!`);
+                    return;
+                }
+
+                const { success, data, error } = messageListSchema.safeParse(body);
+
+                if (!success) {
+                    log.withMetadata({ error }).error(`Error while parsing messages of room ${room.name}`);
+                    return;
+                }
+
+                setMessages(data);
+            } catch (error) {
+                log.withMetadata({ error }).error(`Unknown error occurred while fetching message of room ${room.name}`);
+            }
+        }
+
+        if (!room) {
+            return;
+        }
 
         socket.on("onMessageCreated" satisfies keyof ServerToClientEvents, onMessageCreated);
         socket.on("onMessageModified" satisfies keyof ServerToClientEvents, onMessageModified);
         socket.on("onMessageDeleted" satisfies keyof ServerToClientEvents, onMessageDeleted);
+        fetchMessages().then();
 
         return () => {
             socket.off("onMessageCreated" satisfies keyof ServerToClientEvents, onMessageCreated);
             socket.off("onMessageModified" satisfies keyof ServerToClientEvents, onMessageModified);
             socket.off("onMessageDeleted" satisfies keyof ServerToClientEvents, onMessageDeleted);
         };
-    }, [socket]);
+    }, [room]);
+
+    if (!room) {
+        return <>{"When you view a room, messages can be shown here"}</>;
+    }
 
     return <>
+        <Box sx={{display: "flex", flexDirection: "row"}}>
+            <Box>
+                <Typography variant="h6">${room.name}</Typography>
+            </Box>
 
+            <Box component="div" sx={{ overflow: "auto" }}>
+                {messages.map((m) => <MessageView message={m}></MessageView>)}
+            </Box>
+
+            <Box component="form" sx={{ position: "relative", bottom: 0, left: 0, marginTop: "auto" }}>
+                <TextField name="message" label="Type your message"></TextField>
+
+                <IconButton color="primary" type="submit">
+                    <SendIcon></SendIcon>
+                </IconButton>
+            </Box>
+        </Box>
     </>;
 }
 
@@ -361,30 +407,30 @@ function App() {
             <Box sx={{
                 flex: 1
             }}>
-
+                <ChatPanel></ChatPanel>
             </Box>
         </Box>
     </>;
 }
 
-export function Main() {
-    const [loginData, setLoginData] = useState(undefined as Nullable<LoginData>);
-    const [roomArray, setRoomArray] = useState([] as RoomArray);
-    const [currentRoom, setCurrentRoom] = useState(null as Nullable<Room>);
+export function EntryPoint() {
+    const [loginData, setLoginData] = useState(undefined as Nullable<SuccessfulLoginData>);
+    const [roomList, setRoomList] = useState([] as RoomList);
+    const [room, setRoom] = useState(null as Nullable<Room>);
 
     return <>
-        <AuthOps>
+        <AccountOperations>
             <LoginDataContext value={{ loginData, setLoginData }}>
-                <RoomArrayContext value={{ roomArray, setRoomArray }}>
-                        <RoomContext value={{ room: currentRoom, setRoom: setCurrentRoom }}>
+                <RoomListContext value={{ roomList, setRoomList }}>
+                        <RoomContext value={{ room, setRoom }}>
                             <ThemeProvider theme={theme}>
                                 <CssBaseline>
                                     <App></App>
                                 </CssBaseline>
                             </ThemeProvider>
                         </RoomContext>
-                </RoomArrayContext>
+                </RoomListContext>
             </LoginDataContext>
-        </AuthOps>
+        </AccountOperations>
     </>;
 }

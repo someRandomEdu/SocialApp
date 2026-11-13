@@ -1,4 +1,6 @@
+import { JSONType } from "zod";
 import { UntypedId } from "./id.ts";
+export type Json = JSONType;
 export type Fn<Ts extends readonly any[] = [], R = void> = (...params: Ts) => R;
 /**
  * @template {T}
@@ -9,15 +11,17 @@ export type LoosePartial<T> = {
 };
 export type Union<Ts extends readonly unknown[]> = Ts[number];
 export type Nullable<T> = NonNullable<T> | null | undefined;
-export type NonNull = {};
+export type NotNull = {};
 export type Expand<T> = {
     [K in keyof T]: T[K];
 };
 export type Result<T, E> = {
     success: true;
     data: T;
+    error?: never;
 } | {
     success: false;
+    data?: never;
     error: E;
 };
 export type Option<T> = {

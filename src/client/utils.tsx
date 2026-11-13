@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { err, isNullish, NonNull, Nullable, ok, Result } from "../shared/utils";
-import { AccountCredentials, LoginData, loginDataSchema, Account, accountSchema } from "../shared/account";
-import { Room, RoomArray, roomArraySchema } from "../shared/room";
+import { err, isNullish, Json, NotNull, Nullable, ok, Result } from "../shared/utils";
+import { AccountCredentials, SuccessfulLoginData, successfulLoginDataSchema, Account, accountSchema, ModifyAccountData, modifyAccountDataSchema } from "../shared/account";
+import { Room, RoomList, roomListSchema } from "../shared/room";
 import { createTheme } from "@mui/material";
 import { Message } from "../shared/message.ts";
 import { UntypedId } from "../shared/id.ts";
@@ -24,7 +24,7 @@ export const socket: ClientSocket<ServerToClientEvents, ClientToServerEvents> = 
 socket.on("connect", () => {});
 
 socket.on("connect_error", (error) => {
-
+    
 });
 
 export const theme = createTheme({
@@ -70,13 +70,13 @@ export const log = new LogLayer({
 });
 
 export const LoginDataContext = createContext({
-    loginData: undefined as Nullable<LoginData>,
-    setLoginData(value: Nullable<LoginData>) { this.loginData = value; }
+    loginData: undefined as Nullable<SuccessfulLoginData>,
+    setLoginData(value: Nullable<SuccessfulLoginData>) { this.loginData = value; }
 });
 
-export const RoomArrayContext = createContext({
-    roomArray: [] as RoomArray,
-    setRoomArray(value: RoomArray): void { throw new NotImplementedError(); }
+export const RoomListContext = createContext({
+    roomList: [] as RoomList,
+    setRoomList(value: RoomList): void { throw new NotImplementedError(); }
 });
 
 export const ServerOriginsContext = createContext([homeOrigin] as string[]);
@@ -93,19 +93,23 @@ export async function getRoomsOf(token: string, origin: string) {
             headers: { Authorization: `Bearer ${token}` }
         });
 
-        return roomArraySchema.parse(await r.json());
+        return roomListSchema.parse(await r.json());
     } catch (e) {
         console.error(e);
         return [];
     }
 }
 
-export const AuthOpsContext = createContext({
-    async login({ name, password }: AccountCredentials): Promise<Result<LoginData, string>> { 
+export const AccountOperationsContext = createContext({
+    async login(name: string, password: string, origin: string): Promise<Result<Account, unknown>> { 
         throw new NotImplementedError();
     },
 
-    logout(): boolean { throw new NotImplementedError(); }
+    async logout(): Promise<boolean> { throw new NotImplementedError(); },
+
+    async changeAccountInfo({ currentPassword, name, password, description }: ModifyAccountData): Promise<Result<Account, string>> { 
+        throw new NotImplementedError(); 
+    }
 });
 
 export const ErrorContext = createContext({
@@ -117,7 +121,7 @@ export const TokenContext = createContext(null as Nullable<string>);
 export const AccountContext = createContext(null as Nullable<Account>);
 export const MessagesContext = createContext(null as Nullable<Message[]>);
 
-export function AuthOps({ children }: { children?: React.ReactNode }) {
+export function AccountOperations({ children }: { children?: React.ReactNode }) {
     const [token, setToken] = useState(null as Nullable<string>);
     const [account, setAccount] = useState(null as Nullable<Account>);
     const { setError } = useContext(ErrorContext);
@@ -136,58 +140,72 @@ export function AuthOps({ children }: { children?: React.ReactNode }) {
         };
     }, [token]);
 
-    const login = useCallback(async ({ name, password }: AccountCredentials) => {
+    const login = useCallback(async (name: string, password: string, origin: string) => {
         try {
-            const res = await fetch(`${ORIGIN}/accounts/sessions`, {
+            const res = await fetch(`${origin}/accounts/sessions`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, password })
             });
 
-            const body = await res.json();
+            const body: Json = await res.json();
 
             if (!res.ok) {
-                const displayedError = `Failed to log in successfully!`;
-                setError(displayedError);
-                return err(JSON.stringify(body));    
+                return err(body);    
             }
             
-            const { data, error, success } = loginDataSchema.safeParse(body);
+            const { data, error, success } = successfulLoginDataSchema.safeParse(body);
 
             if (!success) {
                 const e = z.prettifyError(error);
-                const displayedError = `Malformed server response! Detail: ${e}`;
-                setError(displayedError);
                 return err(e);
             }
 
             setToken(data.token);
             setAccount(data.account);
-            return ok(data);
+            return ok(data.account);
         } catch (e) {
-            const error = String(e);
-            const displayedError = `Unhandled error: ${e}`;
-            setError(displayedError);
-            return err(error);
+            return err(e);
         }
-    }, []);
+    }, [token, account]);
 
-    const logout = useCallback(() => {
+    const logout = useCallback(async () => {
         const r = !isNullish(token);
         setToken(null);
         setAccount(null);
         return r;
-    }, [token]);
+    }, [token, account]);
 
-    const value = useMemo(
-        () => { return { login, logout }; }, [login, logout]);
+    const changeAccountInfo = useCallback(async (d: ModifyAccountData) => {
+        if (!account) {
+            return err("Can't change account info without logging in!");
+        }
+        
+        const { id, origin } = account;
+        const b = modifyAccountDataSchema.safeParse(d);
+
+        if (!b.success) {
+            return err(z.prettifyError(b.error));
+        }
+
+        const response = await fetch(`${origin}/accounts/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(b.data satisfies ModifyAccountData)
+        });
+
+        return err("");
+    }, []);
+
+    const ops = useMemo(() => { 
+        return { login, logout, changeAccountInfo }; }, [login, logout, changeAccountInfo]);
 
     return <>
         <TokenContext value={token}>
             <AccountContext value={account}>
-                <AuthOpsContext value={value}>
+                <AccountOperationsContext value={ops}>
                     {children}
-                </AuthOpsContext>
+                </AccountOperationsContext>
             </AccountContext>
         </TokenContext>
     </>;
@@ -233,7 +251,7 @@ export async function accountNameOfId(accId: UntypedId, forceFetch = false) {
         const pubAccData = accountSchema.safeParse(data);
 
         if (!pubAccData.success) {
-            console.error(`Error occurred while parsing server data`, pubAccData.error);
+            log.withContext(pubAccData.error).warn(`Error occurred while parsing server data`);
             return err(`Error occurred while parsing server data`);
         }
 
